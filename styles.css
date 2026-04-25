@@ -353,29 +353,8 @@ h3 {
   color: #666;
   margin-top: 4px;
   line-height: 1.4;
+  
 }
-
-body {
-  margin: 0;
-  font-family: -apple-system, sans-serif;
-  background: #f4f4f7;
-}
-
-#app {
-  max-width: 720px;
-  margin: auto;
-  padding: 16px;
-}
-
-.card {
-  background: white;
-  padding: 14px;
-  border-radius: 16px;
-  margin-bottom: 10px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-}
-
-/* 🌍 language button */
 .lang-btn {
   position: fixed;
   top: 14px;
@@ -386,7 +365,7 @@ body {
   font-size: 14px;
   box-shadow: 0 4px 14px rgba(0,0,0,0.12);
   cursor: pointer;
-  z-index: 999;
+  z-index: 999999;
 }
 
 .lang-menu {
@@ -397,7 +376,7 @@ body {
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-  z-index: 1000;
+  z-index: 1000000;
 }
 
 .lang-item {
