@@ -339,3 +339,19 @@ window.goBack = ()=>{
 }
 
 init()
+
+window.toggleLang = async ()=>{
+  let newLang = 'en'
+
+  if(state.lang === 'en') newLang = 'ru'
+  else if(state.lang === 'ru') newLang = 'es'
+  else if(state.lang === 'es') newLang = 'en'
+
+  localStorage.setItem('lang', newLang)
+  state.lang = newLang
+
+  // перезагрузка данных
+  state.categories = await loadCategories(state.lang)
+
+  render()
+}
