@@ -2,7 +2,7 @@ import { loadCategories, loadChecklists } from './api.js'
 
 const app = document.getElementById('app')
 
-/* ---------------- LANG SYSTEM ---------------- */
+/* ---------------- LANG ---------------- */
 
 const LANGS = {
   ru: { label: 'Русский', flag: '🇷🇺' },
@@ -37,7 +37,7 @@ function setLang(lang){
   localStorage.setItem('lang', lang)
 }
 
-/* ---------------- TRANSLATION ENGINE ---------------- */
+/* ---------------- TRANSLATION API ---------------- */
 
 const cache = JSON.parse(localStorage.getItem('i18n_cache') || '{}')
 
@@ -130,7 +130,7 @@ function getDone(id){
   return !!state.progress[id]
 }
 
-/* ---------------- RENDER ---------------- */
+/* ---------------- RENDER (FULL AUTO TRANSLATION) ---------------- */
 
 async function render(){
 
@@ -144,31 +144,23 @@ async function render(){
 
       const percent = total ? Math.round(done / total * 100) : 0
 
-      // 🔥 FULL AUTO TRANSLATION
+      // 🔥 FULL TRANSLATION CATEGORY
       const title = await tr(c.title)
       const description = await tr(c.description)
-
-      const translatedLists = await Promise.all(
-        lists.map(async l => ({
-          ...l,
-          title: await tr(l.title),
-          description: l.description ? await tr(l.description) : ''
-        }))
-      )
 
       return {
         ...c,
         title,
         description,
         percent,
-        lists: translatedLists
+        lists
       }
     })
   )
 
   app.innerHTML = `
     <div class="card">
-      <b>Checklist App</b>
+      <b>${await tr('Checklist App')}</b>
     </div>
 
     ${categoriesWithProgress.map(c=>`
@@ -189,23 +181,15 @@ window.openCategory = async (id)=>{
 
   const lists = await loadChecklists(id)
 
-  const translated = await Promise.all(
-    lists.map(async l => ({
-      ...l,
-      title: await tr(l.title),
-      description: l.description ? await tr(l.description) : ''
-    }))
-  )
-
   app.innerHTML = `
-    <button onclick="init()">← Back</button>
+    <button onclick="init()">← ${await tr('Back')}</button>
 
-    ${translated.map(l=>`
+    ${await Promise.all(lists.map(async l=>`
       <div class="card" onclick="toggleDone('${l.id}')">
-        <b>${l.title}</b>
+        <b>${await tr(l.title)}</b>
         <div>${getDone(l.id) ? '✔' : '○'}</div>
       </div>
-    `).join('')}
+    `)).then(arr => arr.join(''))}
   `
 }
 
