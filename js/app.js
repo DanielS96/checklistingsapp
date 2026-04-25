@@ -37,7 +37,35 @@ function setLang(lang){
   localStorage.setItem('lang', lang)
 }
 
-/* ---------------- LANG UI ---------------- */
+/* ---------------- TRANSLATION ENGINE ---------------- */
+
+const cache = JSON.parse(localStorage.getItem('i18n_cache') || '{}')
+
+async function tr(text, lang = state.lang){
+  if(!text) return text
+  if(lang === 'ru') return text
+
+  const key = `${text}_${lang}`
+  if(cache[key]) return cache[key]
+
+  try {
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ru|${lang}`
+    )
+
+    const data = await res.json()
+    const translated = data.responseData.translatedText
+
+    cache[key] = translated
+    localStorage.setItem('i18n_cache', JSON.stringify(cache))
+
+    return translated
+  } catch {
+    return text
+  }
+}
+
+/* ---------------- LANG BUTTON ---------------- */
 
 function createLangButton(){
   const btn = document.createElement('div')
@@ -88,10 +116,18 @@ window.changeLang = async (lang)=>{
 
 async function init(){
   state.lang = detectLang()
+
   state.categories = await loadCategories()
 
   createLangButton()
+
   render()
+}
+
+/* ---------------- PROGRESS ---------------- */
+
+function getDone(id){
+  return !!state.progress[id]
 }
 
 /* ---------------- RENDER ---------------- */
@@ -99,15 +135,34 @@ async function init(){
 async function render(){
 
   const categoriesWithProgress = await Promise.all(
-    state.categories.map(async c=>{
+    state.categories.map(async c => {
+
       const lists = await loadChecklists(c.id)
 
       const total = lists.length
-      const done = lists.filter(l => state.progress[l.id]).length
+      const done = lists.filter(l => getDone(l.id)).length
 
       const percent = total ? Math.round(done / total * 100) : 0
 
-      return { ...c, percent }
+      // 🔥 FULL AUTO TRANSLATION
+      const title = await tr(c.title)
+      const description = await tr(c.description)
+
+      const translatedLists = await Promise.all(
+        lists.map(async l => ({
+          ...l,
+          title: await tr(l.title),
+          description: l.description ? await tr(l.description) : ''
+        }))
+      )
+
+      return {
+        ...c,
+        title,
+        description,
+        percent,
+        lists: translatedLists
+      }
     })
   )
 
@@ -117,13 +172,49 @@ async function render(){
     </div>
 
     ${categoriesWithProgress.map(c=>`
-      <div class="card">
-        <b>${c.icon} ${c.title}</b>
-        <div>${c.description}</div>
-        <div>${c.percent}%</div>
+      <div class="card" onclick="openCategory('${c.id}')">
+        <b>${c.title}</b>
+        <div>${c.description || ''}</div>
+        <div style="margin-top:6px;font-size:12px;">
+          ${c.percent}%
+        </div>
       </div>
     `).join('')}
   `
+}
+
+/* ---------------- CATEGORY ---------------- */
+
+window.openCategory = async (id)=>{
+
+  const lists = await loadChecklists(id)
+
+  const translated = await Promise.all(
+    lists.map(async l => ({
+      ...l,
+      title: await tr(l.title),
+      description: l.description ? await tr(l.description) : ''
+    }))
+  )
+
+  app.innerHTML = `
+    <button onclick="init()">← Back</button>
+
+    ${translated.map(l=>`
+      <div class="card" onclick="toggleDone('${l.id}')">
+        <b>${l.title}</b>
+        <div>${getDone(l.id) ? '✔' : '○'}</div>
+      </div>
+    `).join('')}
+  `
+}
+
+/* ---------------- TOGGLE ---------------- */
+
+window.toggleDone = (id)=>{
+  state.progress[id] = !state.progress[id]
+  localStorage.setItem('progress', JSON.stringify(state.progress))
+  render()
 }
 
 /* ---------------- START ---------------- */
