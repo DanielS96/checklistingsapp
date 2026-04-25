@@ -1,52 +1,87 @@
 
-console.log("APP STARTED")
+const tg = window.Telegram?.WebApp
 
-const app = document.getElementById("app")
+if(!tg){
+  document.body.innerHTML = "<h2>Open inside Telegram</h2>"
+  throw new Error("Not Telegram")
+}
 
-// ================= SAFE TELEGRAM INIT =================
-const tg = window.Telegram?.WebApp || null
+tg.ready()
+tg.expand()
 
-let isTelegram = false
+const user = tg.initDataUnsafe?.user
 
-if(tg){
+// ================= PAY FUNCTION =================
+async function pay100Stars(){
+
+  if(!user){
+    alert("No Telegram user")
+    return
+  }
+
+  console.log("USER:", user)
+
   try {
-    tg.ready()
-    tg.expand()
-    isTelegram = true
-    console.log("Telegram detected")
-  } catch(e){
-    console.log("Telegram init error", e)
+
+    // 👉 ВАЖНО: sendInvoice через Bot API нельзя из фронта напрямую
+    // поэтому используем Telegram WebApp API openInvoice
+
+    const invoicePayload = {
+      title: "Unlock Premium",
+      description: "Access for 100 Stars",
+      payload: `pay_${user.id}_${Date.now()}`,
+      provider_token: "",
+      currency: "XTR",
+      prices: [
+        {
+          label: "Access",
+          amount: 100
+        }
+      ]
+    }
+
+    // 👉 вызываем Bot API через backend НЕ НУЖЕН для TEST MODE:
+    // Telegram сам умеет открывать invoice через openInvoice если передать URL
+
+    const res = await fetch("https://api.telegram.org/8639535861:AAHYZugJ-y3Kdf6T86iG-PkU88BexxW70QU/createInvoiceLink", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(invoicePayload)
+    })
+
+    const data = await res.json()
+
+    console.log("INVOICE:", data)
+
+    if(!data.ok){
+      alert(data.description || "Invoice error")
+      return
+    }
+
+    // 👉 ОТКРЫВАЕМ ОПЛАТУ В TELEGRAM
+    tg.openInvoice(data.result, (status) => {
+
+      console.log("PAY STATUS:", status)
+
+      if(status === "paid"){
+        alert("PAYMENT SUCCESS 🎉")
+        // тут unlock контента
+      }
+
+      if(status === "cancelled"){
+        alert("Payment cancelled")
+      }
+
+    })
+
+  } catch (e) {
+    console.error(e)
+    alert("Payment error")
   }
 }
 
-// ================= RENDER ALWAYS =================
-function render(){
-
-  app.innerHTML = `
-    <div class="card">
-      <h2>Checklistings 🚀</h2>
-      <p>Status: ${isTelegram ? "Telegram mode" : "Browser mode"}</p>
-
-      ${!isTelegram ? `
-        <p class="warn">
-          Open this app inside Telegram for full features
-        </p>
-      ` : ""}
-    </div>
-
-    <div class="card">
-      <h3>Test payment</h3>
-
-      <button id="payBtn">
-        Pay 100 Stars ⭐
-      </button>
-    </div>
-  `
-
-  document.getElementById("payBtn").onclick = () => {
-    alert("BUTTON WORKS 🔥")
-    console.log("CLICK OK")
-  }
-}
-
-render()
+// ================= BUTTON =================
+document.getElementById("payBtn")
+  .addEventListener("click", pay100Stars)
