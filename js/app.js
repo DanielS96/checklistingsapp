@@ -2,7 +2,13 @@ import { loadCategories, loadChecklists } from './api.js'
 
 const app = document.getElementById('app')
 
-/* ---------------- STATE ---------------- */
+/* ---------------- LANG SYSTEM ---------------- */
+
+const LANGS = {
+  ru: { label: 'Русский', flag: '🇷🇺' },
+  en: { label: 'English', flag: '🇬🇧' },
+  es: { label: 'Español', flag: '🇪🇸' }
+}
 
 let state = {
   lang: 'ru',
@@ -10,9 +16,12 @@ let state = {
   progress: JSON.parse(localStorage.getItem('progress') || '{}')
 }
 
-/* ---------------- AUTO DETECT LANG ---------------- */
+/* ---------------- DETECT LANG ---------------- */
 
 function detectLang(){
+  const saved = localStorage.getItem('lang')
+  if(saved) return saved
+
   const tg = window.Telegram?.WebApp
   const code = tg?.initDataUnsafe?.user?.language_code
 
@@ -20,12 +29,15 @@ function detectLang(){
 
   if(lang.startsWith('ru')) return 'ru'
   if(lang.startsWith('es')) return 'es'
-  if(lang.startsWith('en')) return 'en'
-
   return 'en'
 }
 
-/* ---------------- TRANSLATION CACHE ---------------- */
+function setLang(lang){
+  state.lang = lang
+  localStorage.setItem('lang', lang)
+}
+
+/* ---------------- SIMPLE TRANSLATION ---------------- */
 
 const cache = JSON.parse(localStorage.getItem('i18n_cache') || '{}')
 
@@ -33,7 +45,6 @@ async function translate(text, lang){
   if(lang === 'ru') return text
 
   const key = `${text}_${lang}`
-
   if(cache[key]) return cache[key]
 
   try {
@@ -53,18 +64,13 @@ async function translate(text, lang){
   }
 }
 
-/* ---------------- UI DICTIONARY ---------------- */
+/* ---------------- UI TEXT ---------------- */
 
 let t = {
-  back: 'Назад',
   progress: 'Прогресс',
   completed: 'Выполнено',
-  new: 'Новый',
-  inProgress: 'В процессе',
   level: 'Уровень'
 }
-
-/* ---------------- LOAD TRANSLATIONS ---------------- */
 
 async function loadDict(lang){
   if(lang === 'ru') return
@@ -94,10 +100,46 @@ function getLevel(percent){
   return 'Мастер'
 }
 
+/* ---------------- LANG UI ---------------- */
+
+function langButton(){
+  const l = LANGS[state.lang]
+
+  return `
+    <div class="lang-btn" onclick="toggleMenu()">
+      ${l.flag} ${state.lang.toUpperCase()}
+    </div>
+  `
+}
+
+window.toggleMenu = ()=>{
+  const exist = document.getElementById('langMenu')
+  if(exist) return exist.remove()
+
+  const menu = document.createElement('div')
+  menu.id = 'langMenu'
+  menu.className = 'lang-menu'
+
+  menu.innerHTML = Object.keys(LANGS).map(l=>`
+    <div class="lang-item" onclick="changeLang('${l}')">
+      ${LANGS[l].flag} ${LANGS[l].label}
+    </div>
+  `).join('')
+
+  document.body.appendChild(menu)
+}
+
+window.changeLang = async (lang)=>{
+  setLang(lang)
+  document.getElementById('langMenu')?.remove()
+
+  await loadDict(lang)
+  render()
+}
+
 /* ---------------- INIT ---------------- */
 
 async function init(){
-
   state.lang = detectLang()
 
   await loadDict(state.lang)
@@ -131,9 +173,7 @@ async function render(){
   const level = getLevel(totalPercent)
 
   app.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <h1>Checklistings</h1>
-    </div>
+    ${langButton()}
 
     <div class="card">
       <div>${t.level}: <b>${level}</b></div>
@@ -155,13 +195,10 @@ async function render(){
 /* ---------------- CATEGORY ---------------- */
 
 window.openCategory = async (id)=>{
-
   const lists = await loadChecklists(id)
 
   app.innerHTML = `
-    <button onclick="init()">${t.back}</button>
-
-    <h2>Checklists</h2>
+    <button onclick="init()">← Back</button>
 
     ${lists.map(l=>`
       <div class="card" onclick="toggleDone('${l.id}')">
