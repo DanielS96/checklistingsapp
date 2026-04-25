@@ -32,15 +32,7 @@ async function pay(){
       return
     }
 
-    tg.openInvoice(data.url, (status)=>{
-
-      console.log("STATUS:", status)
-
-      if(status === "paid"){
-        alert("SUCCESS 🎉")
-      }
-
-    })
+    alert("Invoice sent in Telegram 💬")
 
   } catch (e) {
     console.error(e)
