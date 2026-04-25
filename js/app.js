@@ -1,4 +1,4 @@
-import { loadCategories, loadChecklists } from '/checklistingsapp/api.js'
+import { loadCategories, loadChecklists } from '/js/api.js'
 
 const app = document.getElementById('app')
 
