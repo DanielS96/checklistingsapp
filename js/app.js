@@ -33,7 +33,7 @@ const t = {
   }
 }
 
-const tr = () => t[state.lang]
+const tr = () => t[state.lang] || t.en
 
 const app = document.getElementById('app')
 
@@ -93,11 +93,10 @@ async function init(){
   let savedLang = localStorage.getItem('lang')
 
   if(!savedLang){
-    savedLang = detectLang()
-    localStorage.setItem('lang', savedLang)
+    savedLang = detectLang?.() || 'en'
   }
 
-  state.lang = savedLang
+  state.lang = savedLang || 'en'
 
   state.categories = await loadCategories(state.lang)
 
@@ -373,8 +372,6 @@ window.goBack = ()=>{
   render()
 }
 
-init()
-
 window.toggleLang = async ()=>{
   let newLang = 'en'
 
@@ -390,3 +387,5 @@ window.toggleLang = async ()=>{
 
   render()
 }
+
+init()
