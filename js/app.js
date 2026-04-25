@@ -3,78 +3,33 @@ import { loadCategories, loadChecklists } from './api.js'
 const app = document.getElementById('app')
 
 let state = {
-  lang: 'ru',
   categories: [],
-  checklists: []
+  progress: JSON.parse(localStorage.getItem('progress') || '{}')
 }
 
-/* ---------------- DETECT LANGUAGE ---------------- */
+/* ---------------- PROGRESS ---------------- */
 
-function detectLang(){
-  const tg = window.Telegram?.WebApp
-  const code = tg?.initDataUnsafe?.user?.language_code
-
-  if(code && code.startsWith('ru')) return 'ru'
-  return navigator.language.startsWith('ru') ? 'ru' : 'en'
+function getDone(id){
+  return !!state.progress[id]
 }
 
-/* ---------------- SIMPLE TRANSLATOR ---------------- */
-
-const cache = JSON.parse(localStorage.getItem('cache') || '{}')
-
-async function translate(text, lang){
-  if(lang === 'ru') return text
-
-  const key = `${text}_${lang}`
-  if(cache[key]) return cache[key]
-
-  try {
-    const res = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ru|${lang}`
-    )
-
-    const data = await res.json()
-    const translated = data.responseData.translatedText
-
-    cache[key] = translated
-    localStorage.setItem('cache', JSON.stringify(cache))
-
-    return translated
-  } catch {
-    return text
-  }
+function setDone(id){
+  state.progress[id] = true
+  localStorage.setItem('progress', JSON.stringify(state.progress))
 }
 
-/* ---------------- UI TEXT CACHE ---------------- */
+/* ---------------- LEVEL ---------------- */
 
-let t = {
-  back: 'Назад',
-  progress: 'Ваш прогресс',
-  completed: 'Выполнен',
-  new: 'Новый',
-  inProgress: 'Не завершен',
-  check: 'Проверить',
-  excellent: 'Отлично!',
-  tryAgain: 'Попробуй ещё раз'
-}
-
-async function loadDict(lang){
-  if(lang === 'ru') return
-
-  for(let key in t){
-    t[key] = await translate(t[key], lang)
-  }
+function getLevel(percent){
+  if(percent < 20) return 'Новичок'
+  if(percent < 50) return 'Любитель'
+  if(percent < 80) return 'Продвинутый'
+  return 'Мастер'
 }
 
 /* ---------------- INIT ---------------- */
 
 async function init(){
-  const saved = localStorage.getItem('lang')
-
-  state.lang = saved || detectLang()
-
-  await loadDict(state.lang)
-
   state.categories = await loadCategories()
 
   render()
@@ -82,41 +37,75 @@ async function init(){
 
 /* ---------------- RENDER ---------------- */
 
-function render(){
+async function render(){
+
+  const categoriesWithProgress = await Promise.all(
+    state.categories.map(async c=>{
+      const lists = await loadChecklists(c.id)
+
+      const total = lists.length
+      const done = lists.filter(l => getDone(l.id)).length
+
+      const percent = total ? Math.round(done / total * 100) : 0
+
+      return { ...c, percent }
+    })
+  )
+
+  const totalPercent = categoriesWithProgress.length
+    ? Math.round(categoriesWithProgress.reduce((a,b)=>a+b.percent,0) / categoriesWithProgress.length)
+    : 0
+
+  const level = getLevel(totalPercent)
+
   app.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <h1>Checklistings</h1>
-
-      <button onclick="toggleLang()">
-        🌐 ${state.lang.toUpperCase()}
-      </button>
     </div>
 
-    <div style="margin:10px 0;">
-      ${t.progress}
+    <div class="card">
+      <div>Уровень: <b>${level}</b></div>
+      <div>Прогресс: ${totalPercent}%</div>
     </div>
 
-    ${state.categories.map(c=>`
-      <div class="card">
+    ${categoriesWithProgress.map(c=>`
+      <div class="card" onclick="openCategory('${c.id}')">
         <b>${c.icon} ${c.title}</b>
-        <div style="font-size:12px;color:#666">
-          ${c.description}
+        <div>${c.description}</div>
+        <div style="margin-top:6px;font-size:12px;">
+          ${c.percent}% выполнено
         </div>
       </div>
     `).join('')}
   `
 }
 
-/* ---------------- SWITCH LANGUAGE ---------------- */
+/* ---------------- CATEGORY CLICK ---------------- */
 
-window.toggleLang = async ()=>{
-  state.lang = state.lang === 'ru' ? 'en' : 'ru'
+window.openCategory = async (id)=>{
+  const lists = await loadChecklists(id)
 
-  localStorage.setItem('lang', state.lang)
+  app.innerHTML = `
+    <button onclick="init()">← Назад</button>
 
-  await loadDict(state.lang)
+    <h2>Чек-листы</h2>
 
+    ${lists.map(l=>`
+      <div class="card" onclick="toggleDone('${l.id}')">
+        <b>${l.title}</b>
+        <div>${getDone(l.id) ? '✔ выполнено' : '○ не выполнено'}</div>
+      </div>
+    `).join('')}
+  `
+}
+
+/* ---------------- TOGGLE ---------------- */
+
+window.toggleDone = (id)=>{
+  setDone(id)
   render()
 }
+
+/* ---------------- START ---------------- */
 
 init()
