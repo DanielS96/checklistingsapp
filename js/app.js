@@ -2,156 +2,240 @@ import { loadCategories, loadChecklists } from './api.js'
 
 const app = document.getElementById('app')
 
-const LANGS = {
-  ru: { label: 'Русский', flag: '🇷🇺' },
-  en: { label: 'English', flag: '🇬🇧' },
-  es: { label: 'Español', flag: '🇪🇸' }
-}
-
 let state = {
-  lang: 'ru',
+  screen: 'categories',
   categories: [],
-  progress: JSON.parse(localStorage.getItem('progress') || '{}')
+  category: null,
+  checklists: [],
+  current: null,
+  lang: localStorage.getItem('lang') || 'auto'
 }
 
-/* ---------------- LANG ---------------- */
+// ===== TRANSLATION ENGINE =====
+const cache = {}
 
-function detectLang(){
-  const saved = localStorage.getItem('lang')
-  if(saved) return saved
-
-  const code = navigator.language || 'ru'
-
-  if(code.startsWith('ru')) return 'ru'
-  if(code.startsWith('es')) return 'es'
-  return 'en'
+async function detectLang(){
+  if(state.lang !== 'auto') return state.lang
+  return navigator.language.slice(0,2) || 'en'
 }
 
-function setLang(lang){
-  state.lang = lang
-  localStorage.setItem('lang', lang)
-}
-
-/* ---------------- TRANSLATE ---------------- */
-
-const cache = JSON.parse(localStorage.getItem('i18n_cache') || '{}')
-
-async function tr(text){
-  const lang = state.lang
+async function translate(text, targetLang){
   if(!text) return text
-  if(lang === 'ru') return text
+  if(targetLang === 'ru') return text
 
-  const key = `${text}_${lang}`
+  const key = text + targetLang
   if(cache[key]) return cache[key]
 
   try {
-    const res = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ru|${lang}`
-    )
+    const res = await fetch("https://libretranslate.de/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        q: text,
+        source: "auto",
+        target: targetLang,
+        format: "text"
+      })
+    })
 
     const data = await res.json()
-    const translated = data.responseData.translatedText
+    cache[key] = data.translatedText || text
+    return cache[key]
 
-    cache[key] = translated
-    localStorage.setItem('i18n_cache', JSON.stringify(cache))
-
-    return translated
   } catch {
     return text
   }
 }
 
-/* ---------------- INIT ---------------- */
+async function t(text){
+  const lang = await detectLang()
+  if(lang === 'ru') return text
+  return await translate(text, lang)
+}
 
+// ===== INIT =====
 async function init(){
-  state.lang = detectLang()
   state.categories = await loadCategories()
+
+  document.getElementById('langSwitcher').value = state.lang
+
+  document.getElementById('langSwitcher').onchange = (e)=>{
+    state.lang = e.target.value
+    localStorage.setItem('lang', state.lang)
+    render()
+  }
+
   render()
 }
 
-/* ---------------- 🔥 NORMALIZE DATA (ВАЖНО) ---------------- */
+// ===== RENDER =====
+function render(){
+  if(state.screen === 'categories') renderCategories()
+  if(state.screen === 'list') renderList()
+  if(state.screen === 'check') renderCheck()
+}
 
-async function buildData(){
+// ===== CATEGORIES =====
+async function renderCategories(){
+  const progress = getProgress()
 
-  const categories = await Promise.all(
-    state.categories.map(async c => {
-
-      const listsRaw = await loadChecklists(c.id)
-
-      const lists = await Promise.all(
-        listsRaw.map(async l => ({
-          id: l.id,
-          title: await tr(l.title),
-          description: l.description ? await tr(l.description) : ''
-        }))
-      )
-
-      const done = lists.filter(l => state.progress[l.id]).length
-      const percent = lists.length ? Math.round(done / lists.length * 100) : 0
+  const categoriesWithProgress = await Promise.all(
+    state.categories.map(async (c)=>{
+      const lists = await loadChecklists(c.id)
+      const total = lists.length
+      const done = lists.filter(l => progress[l.id]).length
+      const percent = total ? Math.round(done / total * 100) : 0
 
       return {
-        id: c.id,
-        title: await tr(c.title),
-        description: await tr(c.description),
-        lists,
+        ...c,
+        title: await t(c.title),
+        description: await t(c.description),
         percent
       }
     })
   )
 
-  return categories
-}
+  const percent = Math.round(
+    categoriesWithProgress.reduce((a,c)=>a+c.percent,0) / categoriesWithProgress.length
+  )
 
-/* ---------------- RENDER ---------------- */
-
-async function render(){
-
-  const categories = await buildData()
+  const level = getLevel(percent)
 
   app.innerHTML = `
-    <div class="card">
-      <b>${await tr('Checklist App')}</b>
+    <h1>${await t('Checklistings')}</h1>
+
+    <div class="dashboard">
+      <div class="dashboard-title">${await t('Ваш прогресс')}</div>
+      <div class="dashboard-level">${await t(level)}</div>
+
+      <div class="dashboard-bar">
+        <div class="dashboard-fill" style="width:${percent}%"></div>
+      </div>
+
+      <div style="margin-top:6px;">${percent}%</div>
     </div>
 
-    ${categories.map(c=>`
-      <div class="card" onclick="openCategory('${c.id}')">
-        <b>${c.title}</b>
-        <div>${c.description}</div>
-        <div style="margin-top:6px;font-size:12px;">
-          ${c.percent}%
+    ${categoriesWithProgress.map(c=>`
+      <div class="card category" onclick="openCategory('${c.id}')">
+        <div class="category-title">${c.icon} ${c.title}</div>
+        <div style="font-size:13px;color:#666;margin-top:4px;">
+          ${c.description}
+        </div>
+
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${c.percent}%"></div>
         </div>
       </div>
     `).join('')}
   `
 }
 
-/* ---------------- CATEGORY ---------------- */
-
+// ===== LIST =====
 window.openCategory = async (id)=>{
+  state.category = id
+  state.checklists = await loadChecklists(id)
+  state.screen = 'list'
+  render()
+}
 
-  const categories = await buildData()
-  const cat = categories.find(c => c.id === id)
+function renderList(){
+  app.innerHTML = `
+    <button class="btn btn-ghost" onclick="goBack()">←</button>
+
+    ${state.checklists.map(async c=>{
+      const s = getStatus(c.id)
+
+      return `
+        <div class="card" onclick="openChecklist('${c.id}')">
+          <div style="font-weight:700;">
+            ${await t(c.title)}
+          </div>
+          <div class="checklist-subtitle">
+            ${await t(c.subtitle)}
+          </div>
+
+          <div class="status ${s.class}">
+            ${await t(s.text)}
+          </div>
+        </div>
+      `
+    }).join('')}
+  `
+}
+
+// ===== CHECK =====
+window.openChecklist = async (id)=>{
+  setOpened(id)
+  state.current = state.checklists.find(x=>x.id===id)
+  state.screen = 'check'
+  render()
+}
+
+async function renderCheck(){
+  const c = state.current
 
   app.innerHTML = `
-    <button onclick="init()">← Back</button>
+    <button class="btn btn-ghost" onclick="goBack()">←</button>
 
-    ${cat.lists.map(l=>`
-      <div class="card" onclick="toggleDone('${l.id}')">
-        <b>${l.title}</b>
-        <div>${state.progress[l.id] ? '✔' : '○'}</div>
+    <h2>${await t(c.title)}</h2>
+
+    ${c.description ? `
+      <div class="checklist-description">
+        ${await t(c.description)}
+      </div>
+    ` : ''}
+
+    ${(c.items || []).map(async (item,i)=>`
+      <div class="item">
+        <div class="item-header" onclick="toggle(${i})">
+          ${item.emoji} ${await t(item.title)}
+        </div>
+
+        <div class="item-body" id="i${i}">
+          <p>${await t(item.text)}</p>
+
+          ${item.tip ? `
+            <div class="tip">
+              💡 ${await t(item.tip)}
+            </div>
+          ` : ''}
+        </div>
       </div>
     `).join('')}
   `
 }
 
-/* ---------------- TOGGLE ---------------- */
-
-window.toggleDone = (id)=>{
-  state.progress[id] = !state.progress[id]
-  localStorage.setItem('progress', JSON.stringify(state.progress))
-  render()
+// ===== HELPERS =====
+function getProgress(){
+  return JSON.parse(localStorage.getItem('progress') || '{}')
 }
 
-/* ---------------- START ---------------- */
+function getOpened(){
+  return JSON.parse(localStorage.getItem('opened') || '{}')
+}
+
+function setDone(id){
+  const p = getProgress()
+  p[id] = true
+  localStorage.setItem('progress', JSON.stringify(p))
+}
+
+function setOpened(id){
+  const o = getOpened()
+  o[id] = true
+  localStorage.setItem('opened', JSON.stringify(o))
+}
+
+function getLevel(percent){
+  if(percent < 20) return 'Новичок'
+  if(percent < 50) return 'Любитель'
+  if(percent < 80) return 'Продвинутый'
+  return 'Мастер'
+}
+
+window.goBack = ()=>{
+  state.screen = state.screen === 'check' ? 'list' : 'categories'
+  render()
+}
 
 init()
