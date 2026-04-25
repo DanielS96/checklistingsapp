@@ -1,28 +1,49 @@
+
+const tg = window.Telegram.WebApp
+tg.expand()
+
 const WORKER_URL = "https://checklistings.dan-svistunov.workers.dev"
+
+const user = tg.initDataUnsafe?.user
 
 async function payStars(){
 
-  console.log("CLICK")
+  if(!user){
+    alert("Open inside Telegram")
+    return
+  }
+
+  console.log("USER:", user)
 
   try {
+
     const res = await fetch(WORKER_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
-        userId: 123456789 // важно: Telegram user id (пока тест)
+        userId: user.id
       })
     })
 
     const data = await res.json()
 
-    console.log(data)
+    console.log("WORKER:", data)
 
     if(!data.ok){
       alert(data.error)
       return
     }
 
-    alert("Invoice sent! Check Telegram")
+    // Telegram сам откроет invoice
+    tg.openInvoice(data.result, (status)=>{
+      console.log("PAY STATUS:", status)
+
+      if(status === "paid"){
+        alert("Payment successful 🎉")
+      }
+    })
 
   } catch (e) {
     console.error(e)
@@ -30,4 +51,5 @@ async function payStars(){
   }
 }
 
-window.payStars = payStars
+document.getElementById("payBtn")
+  .addEventListener("click", payStars)
