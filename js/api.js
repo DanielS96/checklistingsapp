@@ -1,22 +1,46 @@
-const BASE = '/checklistingsapp'
-
 export async function loadCategories(){
-  const res = await fetch(`${BASE}/data/categories.json`)
-  if(!res.ok) return []
-  return await res.json()
+  try {
+    const res = await fetch('data/categories.json')
+    return await res.json()
+  } catch (e) {
+    console.error('Ошибка загрузки categories.json', e)
+    return []
+  }
 }
 
 export async function loadChecklists(categoryId){
-  const res = await fetch(`${BASE}/data/${categoryId}/index.json`)
-  if(!res.ok) return []
+  try {
+    const res = await fetch(`data/${categoryId}/index.json`)
+    const files = await res.json()
 
-  const files = await res.json()
+    if(!Array.isArray(files)){
+      return []
+    }
 
-  return Promise.all(
-    files.map(async f=>{
-      const r = await fetch(`${BASE}/data/${categoryId}/${f}`)
-      if(!r.ok) return null
-      return await r.json()
-    })
-  )
+    const results = await Promise.all(
+      files.map(async (f)=>{
+        try {
+          const r = await fetch(`data/${categoryId}/${f}`)
+          const data = await r.json()
+
+          return {
+            id: data.id || f,
+            title: data.title || 'Без названия',
+            subtitle: data.subtitle || '',
+            description: data.description || '',
+            items: Array.isArray(data.items) ? data.items : [],
+            quiz: Array.isArray(data.quiz) ? data.quiz : []
+          }
+
+        } catch (e) {
+          return null
+        }
+      })
+    )
+
+    return results.filter(Boolean)
+
+  } catch (e) {
+    return []
+  }
 }
