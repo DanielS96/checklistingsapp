@@ -1,56 +1,42 @@
+console.log("SCRIPT LOADED ✅")
 
-const WORKER_URL = "https://checklistings.dan-svistunov.workers.dev"
+const btn = document.getElementById("payBtn")
 
-console.log("APP LOADED ✅")
+console.log("BUTTON:", btn)
 
-async function payTest(){
+if(!btn){
+  console.error("BUTTON NOT FOUND ❌")
+}
 
-  console.log("BUTTON CLICKED 🔥")
+btn.onclick = async () => {
+
+  console.log("CLICK WORKS 🔥")
 
   try {
-    const res = await fetch(WORKER_URL, {
+    const res = await fetch("https://checklistings.dan-svistunov.workers.dev", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        userId: "debug_user",
-        checklistId: "test_100"
+        userId: "test",
+        checklistId: "test"
       })
     })
 
-    console.log("FETCH SENT 🚀")
+    console.log("REQUEST SENT 🚀")
 
     const data = await res.json()
 
-    console.log("WORKER RESPONSE:", data)
+    console.log("RESPONSE:", data)
 
-    if(data.ok && data.url){
-      console.log("REDIRECTING 👉")
+    if(data.ok){
       window.location.href = data.url
     } else {
-      alert("ERROR: " + (data.error || "no url"))
+      alert(data.error)
     }
 
   } catch (e) {
-    console.error("FETCH ERROR ❌", e)
-    alert("Network error")
+    console.error("ERROR:", e)
   }
 }
-
-// 👉 ВАЖНО: attach AFTER DOM ready
-document.addEventListener("DOMContentLoaded", () => {
-
-  const btn = document.getElementById("payBtn")
-
-  console.log("BUTTON FOUND:", btn)
-
-  if(!btn){
-    console.error("BUTTON NOT FOUND ❌")
-    return
-  }
-
-  btn.addEventListener("click", payTest)
-
-  console.log("EVENT ATTACHED ✅")
-})
