@@ -1,64 +1,38 @@
 
-const tg = window.Telegram.WebApp
-tg.ready()
-tg.expand()
+console.log("🔥 APP STARTED")
 
-const WORKER_URL = "https://checklistings.dan-svistunov.workers.dev"
+// Telegram init (может быть null если не в Telegram)
+const tg = window.Telegram?.WebApp
 
-const user = tg.initDataUnsafe?.user
-
-// 🔥 ОПЛАТА
-async function pay(){
-
-  if(!user){
-    alert("Open inside Telegram")
-    return
-  }
-
-  console.log("USER:", user)
-
-  try {
-
-    const res = await fetch(WORKER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        userId: user.id
-      })
-    })
-
-    const data = await res.json()
-
-    console.log("WORKER RESPONSE:", data)
-
-    if(!data.ok){
-      alert(data.error)
-      return
-    }
-
-    // 💥 ВАЖНО: Telegram сам откроет оплату
-    tg.openInvoice(data.result, (status)=>{
-
-      console.log("PAY STATUS:", status)
-
-      if(status === "paid"){
-        alert("Payment successful 🎉")
-        // тут unlock контент
-      }
-
-      if(status === "cancelled"){
-        alert("Payment cancelled")
-      }
-
-    })
-
-  } catch (e) {
-    console.error(e)
-    alert("Network error")
-  }
+if(tg){
+  tg.ready()
+  tg.expand()
+  console.log("Telegram WebApp ready")
+} else {
+  console.warn("NOT IN TELEGRAM")
 }
 
-document.getElementById("payBtn")
-  .addEventListener("click", pay)
+const app = document.getElementById("app")
+
+// ================= UI TEST =================
+function render(){
+
+  app.innerHTML = `
+    <div class="card">
+      <h2>System OK ✅</h2>
+      <p>Если ты видишь это — JS работает</p>
+    </div>
+
+    <button id="payBtn">
+      Pay 100 Stars (TEST)
+    </button>
+  `
+
+  document.getElementById("payBtn")
+    .addEventListener("click", () => {
+      alert("CLICK WORKS 🔥")
+      console.log("BUTTON CLICKED")
+    })
+}
+
+render()
