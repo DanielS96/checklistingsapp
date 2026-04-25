@@ -5,8 +5,6 @@ const app = document.getElementById('app')
 
 const BACKEND_URL = "https://checklistings.dan-svistunov.workers.dev"
 
-// ================= STATE =================
-
 let state = {
   screen: 'categories',
   categories: [],
@@ -19,12 +17,6 @@ let state = {
 
 const getProgress = () => JSON.parse(localStorage.getItem('progress') || '{}')
 const getOpened = () => JSON.parse(localStorage.getItem('opened') || '{}')
-
-const setDone = (id) => {
-  const p = getProgress()
-  p[id] = true
-  localStorage.setItem('progress', JSON.stringify(p))
-}
 
 const setOpened = (id) => {
   const o = getOpened()
@@ -49,9 +41,10 @@ function render() {
   if (state.screen === 'check') renderCheck()
 }
 
-// ================= CATEGORIES =================
+// ================= CATEGORIES (КАК БЫЛО) =================
 
 async function renderCategories() {
+
   const progress = getProgress()
 
   const categoriesWithProgress = await Promise.all(
@@ -64,24 +57,13 @@ async function renderCategories() {
     })
   )
 
-  const percent = Math.round(
-    categoriesWithProgress.reduce((acc, c) => acc + c.percent, 0) /
-    categoriesWithProgress.length
-  )
-
-  categoriesWithProgress.sort((a, b) => b.percent - a.percent)
-
   app.innerHTML = `
     <h1>Checklistings</h1>
-
-    <div class="dashboard">
-      <div>Прогресс: ${percent}%</div>
-    </div>
 
     ${categoriesWithProgress.map(c => `
       <div class="card category" onclick="openCategory('${c.id}')">
         <div>
-          <b>${c.icon} ${c.title}</b>
+          <div class="category-title">${c.icon} ${c.title}</div>
           <div>${c.description}</div>
         </div>
         <div>${c.percent}%</div>
@@ -116,7 +98,7 @@ function renderList() {
 
 // ================= PAYWALL =================
 
-window.openChecklist = async (id) => {
+window.openChecklist = (id) => {
 
   const checklist = state.checklists.find(x => x.id === id)
 
@@ -130,35 +112,55 @@ window.openChecklist = async (id) => {
   render()
 }
 
-// ================= PAYMENT =================
+// ================= PAYMENT (FIXED) =================
 
 async function showPayModal(checklist) {
 
-  const userId = tg?.initDataUnsafe?.user?.id
+  const modal = document.createElement('div')
+  modal.className = 'modal'
 
-  const res = await fetch(`${BACKEND_URL}/create-invoice`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId,
-      checklistId: checklist.id,
-      title: checklist.title
+  modal.innerHTML = `
+    <div class="modal-content">
+      <h3>🔒 Платный чек-лист</h3>
+      <p>Стоимость: <b>100 ⭐ Stars</b></p>
+
+      <button class="btn btn-primary" id="payBtn">Оплатить</button>
+      <button class="btn btn-ghost" onclick="this.closest('.modal').remove()">Отмена</button>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  document.getElementById("payBtn").onclick = async () => {
+
+    const userId = tg?.initDataUnsafe?.user?.id
+
+    const res = await fetch(`${BACKEND_URL}/create-invoice`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        checklistId: checklist.id,
+        title: checklist.title
+      })
     })
-  })
 
-  const data = await res.json()
+    const data = await res.json()
 
-  console.log("INVOICE RESPONSE:", data)
+    console.log("INVOICE:", data)
 
-  // ❗ ВАЖНО:
-  // Telegram сам открывает оплату
-  // ничего не вызываем вручную
+    // ❗ ВАЖНО:
+    // Telegram Stars opens invoice in BOT CHAT automatically
+    // НЕ используем openInvoice вообще
 
-  tg.showPopup({
-    title: "Оплата ⭐",
-    message: "Открой чат с ботом и заверши оплату",
-    buttons: [{ type: "ok" }]
-  })
+    modal.remove()
+
+    tg.showPopup({
+      title: "Оплата ⭐",
+      message: "Заверши оплату в чате с ботом",
+      buttons: [{ type: "ok" }]
+    })
+  }
 }
 
 // ================= CHECKLIST =================
@@ -182,7 +184,7 @@ function renderCheck() {
         <div id="i${i}" style="display:none">
           <p>${item.text}</p>
 
-          ${item.source ? `<small>📚 ${item.source}</small>` : ''}
+          ${item.source ? `<div>📚 ${item.source}</div>` : ''}
 
           ${item.tip ? `<div>💡 ${item.tip}</div>` : ''}
         </div>
