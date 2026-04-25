@@ -32,7 +32,7 @@ const setOpened = (id) => {
   localStorage.setItem('opened', JSON.stringify(o))
 }
 
-// 💰 PAYMENT CHECK
+// 💰 PAYMENT STORAGE
 const isPaid = (id) => {
   return localStorage.getItem("paid_" + id) === "true"
 }
@@ -178,6 +178,7 @@ window.openChecklist = async (id) => {
 
   const checklist = state.checklists.find(x => x.id === id)
 
+  // ❗ если не куплено — платим
   if (!isPaid(id)) {
     return showPayModal(checklist)
   }
@@ -227,14 +228,13 @@ async function showPayModal(checklist) {
     })
 
     const data = await res.json()
-    const invoiceUrl = data?.result?.invoice_url
 
-    if (!invoiceUrl) {
-      alert("Ошибка создания платежа")
-      return
-    }
+    console.log("INVOICE RESPONSE:", data)
 
-    tg.openInvoice(invoiceUrl, (status) => {
+    // ❗ ВАЖНО: Telegram сам открывает оплату
+    // НЕ используем invoice_url вообще
+
+    tg.openInvoice(data.result, (status) => {
 
       console.log("PAY STATUS:", status)
 
