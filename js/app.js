@@ -1,5 +1,35 @@
 import { loadCategories, loadChecklists } from './api.js'
 
+
+async function payTest(){
+
+  try {
+    const res = await fetch("https://checklistings.dan-svistunov.workers.dev", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    })
+
+    const data = await res.json()
+
+    console.log(data)
+
+    if(data.ok){
+      window.location.href = data.url
+    } else {
+      alert(data.error || "Payment error")
+    }
+
+  } catch (e) {
+    alert("Network error")
+    console.error(e)
+  }
+}
+
+window.payTest = payTest
+
 const app = document.getElementById('app')
 
 let state = {
