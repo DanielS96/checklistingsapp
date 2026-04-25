@@ -1,8 +1,9 @@
 import { loadCategories, loadChecklists } from './api.js'
 
 const tg = window.Telegram?.WebApp
-
 const app = document.getElementById('app')
+
+const BACKEND_URL = "https://checklistings.dan-svistunov.workers.dev"
 
 let state = {
   screen: 'categories',
@@ -12,48 +13,66 @@ let state = {
   current: null
 }
 
-// STORAGE
+// ================= STORAGE =================
+
 const getProgress = () => JSON.parse(localStorage.getItem('progress') || '{}')
 const getOpened = () => JSON.parse(localStorage.getItem('opened') || '{}')
 
-const setDone = (id)=>{
+const setDone = (id) => {
   const p = getProgress()
   p[id] = true
   localStorage.setItem('progress', JSON.stringify(p))
 }
 
-const setOpened = (id)=>{
+const setOpened = (id) => {
   const o = getOpened()
   o[id] = true
   localStorage.setItem('opened', JSON.stringify(o))
 }
 
-// LEVEL
-function getLevel(percent){
-  if(percent < 20) return 'Новичок'
-  if(percent < 50) return 'Любитель'
-  if(percent < 80) return 'Продвинутый'
-  return 'Мастер'
+// ===== FREE LIMIT PER CATEGORY =====
+const getFreeUsed = () => JSON.parse(localStorage.getItem('freeUsed') || '{}')
+
+const setFreeUsed = (catId) => {
+  const f = getFreeUsed()
+  f[catId] = true
+  localStorage.setItem('freeUsed', JSON.stringify(f))
 }
 
-// INIT
-async function init(){
+const isFreeAvailable = (catId) => {
+  const f = getFreeUsed()
+  return !f[catId]
+}
+
+// ================= INIT =================
+
+async function init() {
   state.categories = await loadCategories()
   render()
 }
 
-function render(){
-  if(state.screen === 'categories') renderCategories()
-  if(state.screen === 'list') renderList()
-  if(state.screen === 'check') renderCheck()
+function render() {
+  if (state.screen === 'categories') renderCategories()
+  if (state.screen === 'list') renderList()
+  if (state.screen === 'check') renderCheck()
 }
 
-// ===== CATEGORIES =====
-async function renderCategories(){
+// ================= LEVEL =================
+
+function getLevel(percent) {
+  if (percent < 20) return 'Новичок'
+  if (percent < 50) return 'Любитель'
+  if (percent < 80) return 'Продвинутый'
+  return 'Мастер'
+}
+
+// ================= CATEGORIES =================
+
+async function renderCategories() {
   const progress = getProgress()
 
   const categoriesWithProgress = await Promise.all(
-    state.categories.map(async (c)=>{
+    state.categories.map(async (c) => {
       const lists = await loadChecklists(c.id)
       const total = lists.length
       const done = lists.filter(l => progress[l.id]).length
@@ -63,12 +82,13 @@ async function renderCategories(){
   )
 
   const percent = Math.round(
-    categoriesWithProgress.reduce((acc,c)=>acc+c.percent,0) / categoriesWithProgress.length
+    categoriesWithProgress.reduce((acc, c) => acc + c.percent, 0) /
+    categoriesWithProgress.length
   )
 
   const level = getLevel(percent)
 
-  categoriesWithProgress.sort((a,b)=> b.percent - a.percent)
+  categoriesWithProgress.sort((a, b) => b.percent - a.percent)
 
   app.innerHTML = `
     <h1>Checklistings</h1>
@@ -84,7 +104,7 @@ async function renderCategories(){
       <div style="margin-top:6px;">${percent}% завершено</div>
     </div>
 
-    ${categoriesWithProgress.map(c=>`
+    ${categoriesWithProgress.map(c => `
       <div class="card category" onclick="openCategory('${c.id}')">
         <div class="category-header">
           <div>
@@ -104,28 +124,33 @@ async function renderCategories(){
   `
 }
 
-// ===== CATEGORY =====
-window.openCategory = async (id)=>{
+// ================= CATEGORY =================
+
+window.openCategory = async (id) => {
   state.category = id
   state.checklists = await loadChecklists(id)
   state.screen = 'list'
   render()
 }
 
-function getStatus(id){
+// ================= STATUS =================
+
+function getStatus(id) {
   const progress = getProgress()
   const opened = getOpened()
 
-  if(progress[id]) return {text:'Выполнен', class:'done'}
-  if(opened[id]) return {text:'Не завершен', class:'progress'}
-  return {text:'Новый', class:'new'}
+  if (progress[id]) return { text: 'Выполнен', class: 'done' }
+  if (opened[id]) return { text: 'Не завершен', class: 'progress' }
+  return { text: 'Новый', class: 'new' }
 }
 
-function renderList(){
+// ================= LIST =================
+
+function renderList() {
   app.innerHTML = `
     <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
 
-    ${state.checklists.map(c=>{
+    ${state.checklists.map(c => {
       const s = getStatus(c.id)
 
       return `
@@ -153,15 +178,100 @@ function renderList(){
   `
 }
 
-// ===== CHECKLIST =====
-window.openChecklist = (id)=>{
+// ================= OPEN CHECKLIST (PAY LOGIC) =================
+
+window.openChecklist = async (id) => {
+  const checklist = state.checklists.find(x => x.id === id)
+
+  const freeAvailable = isFreeAvailable(state.category)
+  const alreadyPaid = localStorage.getItem("paid_" + id)
+
+  // ❗ если НЕ бесплатно и НЕ куплено → оплата
+  if (!freeAvailable && !alreadyPaid) {
+    return showPayModal(checklist)
+  }
+
+  // ✔ даём бесплатный 1 раз на категорию
+  if (freeAvailable) {
+    setFreeUsed(state.category)
+  }
+
   setOpened(id)
-  state.current = state.checklists.find(x=>x.id===id)
+  state.current = checklist
   state.screen = 'check'
   render()
 }
 
-function renderCheck(){
+// ================= PAYMENT =================
+
+async function showPayModal(checklist) {
+
+  const modal = document.createElement('div')
+  modal.className = 'modal'
+
+  modal.innerHTML = `
+    <div class="modal-content">
+      <h3>🔒 Платный чек-лист</h3>
+      <p>Стоимость: <b>100 Stars</b></p>
+
+      <button class="btn btn-primary" id="payBtn">
+        Оплатить
+      </button>
+
+      <button class="btn btn-ghost" onclick="this.closest('.modal').remove()">
+        Отмена
+      </button>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  document.getElementById("payBtn").onclick = async () => {
+
+    const userId = tg?.initDataUnsafe?.user?.id
+
+    const res = await fetch(`${BACKEND_URL}/create-invoice`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        checklistId: checklist.id,
+        title: checklist.title
+      })
+    })
+
+    const data = await res.json()
+
+    const invoiceUrl = data?.result?.invoice_url
+
+    if (!invoiceUrl) {
+      alert("Ошибка создания платежа")
+      return
+    }
+
+    tg.openInvoice(invoiceUrl, (status) => {
+
+      console.log("PAY STATUS:", status)
+
+      if (status === "paid") {
+        localStorage.setItem("paid_" + checklist.id, "true")
+        modal.remove()
+        window.openChecklist(checklist.id)
+      }
+    })
+  }
+}
+
+// ================= CHECKLIST =================
+
+window.openChecklist = (id) => {
+  setOpened(id)
+  state.current = state.checklists.find(x => x.id === id)
+  state.screen = 'check'
+  render()
+}
+
+function renderCheck() {
   const c = state.current
 
   app.innerHTML = `
@@ -169,13 +279,7 @@ function renderCheck(){
 
     <h2>${c.title}</h2>
 
-    ${c.description ? `
-      <div class="checklist-description">
-        ${c.description}
-      </div>
-    ` : ''}
-
-    ${(c.items || []).map((item,i)=>`
+    ${(c.items || []).map((item, i) => `
       <div class="item">
         <div class="item-header" onclick="toggle(${i})">
           ${item.emoji} ${item.title}
@@ -183,18 +287,6 @@ function renderCheck(){
 
         <div class="item-body" id="i${i}">
           <p>${item.text}</p>
-
-          ${item.source ? `
-            <div style="font-size:12px;color:#888;margin-top:8px;">
-              📚 ${item.source}
-            </div>
-          ` : ''}
-
-          ${item.tip ? `
-            <div style="margin-top:8px;padding:10px;background:#f2f2f7;border-radius:10px;font-size:13px;">
-              💡 ${item.tip}
-            </div>
-          ` : ''}
         </div>
       </div>
     `).join('')}
@@ -203,28 +295,31 @@ function renderCheck(){
   `
 }
 
-window.toggle = (i)=>{
+// ================= TOGGLE =================
+
+window.toggle = (i) => {
   const item = document.querySelectorAll('.item')[i]
-  const body = document.getElementById('i'+i)
+  const body = document.getElementById('i' + i)
 
   const isOpen = body.style.display === 'block'
   body.style.display = isOpen ? 'none' : 'block'
   item.classList.toggle('open')
 }
 
-// ===== QUIZ =====
-function renderQuiz(c){
-  if(!c.quiz) return ''
+// ================= QUIZ =================
+
+function renderQuiz(c) {
+  if (!c.quiz) return ''
 
   return `
     <div class="quiz-section">
       <div class="quiz-title">🧠 Мини-тест</div>
 
-      ${c.quiz.map((q,i)=>`
+      ${c.quiz.map((q, i) => `
         <div class="quiz-question">
           <p>${q.q}</p>
 
-          ${q.a.map((a,j)=>`
+          ${q.a.map((a, j) => `
             <label class="quiz-option">
               <input type="radio" name="q${i}" value="${j}">
               ${a}
@@ -240,67 +335,10 @@ function renderQuiz(c){
   `
 }
 
-window.checkQuiz = ()=>{
-  const c = state.current
-  let score = 0
+// ================= BACK =================
 
-  c.quiz.forEach((q,i)=>{
-    const v = document.querySelector(`input[name="q${i}"]:checked`)
-    if(v && Number(v.value)===q.correct) score++
-  })
-
-  const modal = document.createElement('div')
-  modal.className = 'modal'
-
-  const success = score === c.quiz.length
-
-  // вибрация
-  if(navigator.vibrate){
-    navigator.vibrate(success ? [100, 50, 100] : [200])
-  }
-
-  // звук
-  const audio = new Audio(
-    success
-      ? 'https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3'
-      : 'https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3'
-  )
-  audio.volume = 0.4
-  audio.play()
-
-  if(success){
-    setDone(c.id)
-
-    modal.innerHTML = `
-      <div class="modal-content">
-        <h3>🎉 Отлично!</h3>
-        <p>${score}/${c.quiz.length}</p>
-        <p>Ты полностью прошёл чек-лист 🚀</p>
-        <button class="btn btn-primary" onclick="closeModal(true)">Завершить</button>
-      </div>
-    `
-  } else {
-    modal.innerHTML = `
-      <div class="modal-content">
-        <h3>Результат</h3>
-        <p>${score}/${c.quiz.length}</p>
-        <p>Попробуй ещё раз — ты почти у цели 🎯</p>
-        <button class="btn btn-primary" onclick="closeModal(false)">Вернуться</button>
-      </div>
-    `
-  }
-
-  document.body.appendChild(modal)
-}
-
-window.closeModal = (done)=>{
-  document.querySelector('.modal').remove()
-  if(done) goBack()
-}
-
-// BACK
-window.goBack = ()=>{
-  if(state.screen === 'check') state.screen = 'list'
+window.goBack = () => {
+  if (state.screen === 'check') state.screen = 'list'
   else state.screen = 'categories'
   render()
 }
