@@ -1,38 +1,52 @@
 
-console.log("🔥 APP STARTED")
-
-// Telegram init (может быть null если не в Telegram)
-const tg = window.Telegram?.WebApp
-
-if(tg){
-  tg.ready()
-  tg.expand()
-  console.log("Telegram WebApp ready")
-} else {
-  console.warn("NOT IN TELEGRAM")
-}
+console.log("APP STARTED")
 
 const app = document.getElementById("app")
 
-// ================= UI TEST =================
+// ================= SAFE TELEGRAM INIT =================
+const tg = window.Telegram?.WebApp || null
+
+let isTelegram = false
+
+if(tg){
+  try {
+    tg.ready()
+    tg.expand()
+    isTelegram = true
+    console.log("Telegram detected")
+  } catch(e){
+    console.log("Telegram init error", e)
+  }
+}
+
+// ================= RENDER ALWAYS =================
 function render(){
 
   app.innerHTML = `
     <div class="card">
-      <h2>System OK ✅</h2>
-      <p>Если ты видишь это — JS работает</p>
+      <h2>Checklistings 🚀</h2>
+      <p>Status: ${isTelegram ? "Telegram mode" : "Browser mode"}</p>
+
+      ${!isTelegram ? `
+        <p class="warn">
+          Open this app inside Telegram for full features
+        </p>
+      ` : ""}
     </div>
 
-    <button id="payBtn">
-      Pay 100 Stars (TEST)
-    </button>
+    <div class="card">
+      <h3>Test payment</h3>
+
+      <button id="payBtn">
+        Pay 100 Stars ⭐
+      </button>
+    </div>
   `
 
-  document.getElementById("payBtn")
-    .addEventListener("click", () => {
-      alert("CLICK WORKS 🔥")
-      console.log("BUTTON CLICKED")
-    })
+  document.getElementById("payBtn").onclick = () => {
+    alert("BUTTON WORKS 🔥")
+    console.log("CLICK OK")
+  }
 }
 
 render()
