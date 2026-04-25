@@ -5,6 +5,8 @@ const app = document.getElementById('app')
 
 const BACKEND_URL = "https://checklistings.dan-svistunov.workers.dev"
 
+// ================= STATE =================
+
 let state = {
   screen: 'categories',
   categories: [],
@@ -30,18 +32,9 @@ const setOpened = (id) => {
   localStorage.setItem('opened', JSON.stringify(o))
 }
 
-// ===== FREE LIMIT PER CATEGORY =====
-const getFreeUsed = () => JSON.parse(localStorage.getItem('freeUsed') || '{}')
-
-const setFreeUsed = (catId) => {
-  const f = getFreeUsed()
-  f[catId] = true
-  localStorage.setItem('freeUsed', JSON.stringify(f))
-}
-
-const isFreeAvailable = (catId) => {
-  const f = getFreeUsed()
-  return !f[catId]
+// 💰 PAYMENT STORAGE
+const isPaid = (id) => {
+  return localStorage.getItem("paid_" + id) === "true"
 }
 
 // ================= INIT =================
@@ -152,6 +145,7 @@ function renderList() {
 
     ${state.checklists.map(c => {
       const s = getStatus(c.id)
+      const paid = isPaid(c.id)
 
       return `
         <div class="card" onclick="openChecklist('${c.id}')">
@@ -168,8 +162,8 @@ function renderList() {
               ` : ''}
             </div>
 
-            <div class="status ${s.class}">
-              ${s.text}
+            <div class="status ${paid ? 'done' : s.class}">
+              ${paid ? 'Куплено' : s.text}
             </div>
           </div>
         </div>
@@ -178,22 +172,15 @@ function renderList() {
   `
 }
 
-// ================= OPEN CHECKLIST (PAY LOGIC) =================
+// ================= OPEN CHECKLIST (PAYWALL) =================
 
 window.openChecklist = async (id) => {
+
   const checklist = state.checklists.find(x => x.id === id)
 
-  const freeAvailable = isFreeAvailable(state.category)
-  const alreadyPaid = localStorage.getItem("paid_" + id)
-
-  // ❗ если НЕ бесплатно и НЕ куплено → оплата
-  if (!freeAvailable && !alreadyPaid) {
+  // 💰 ВСЕГДА проверяем оплату
+  if (!isPaid(id)) {
     return showPayModal(checklist)
-  }
-
-  // ✔ даём бесплатный 1 раз на категорию
-  if (freeAvailable) {
-    setFreeUsed(state.category)
   }
 
   setOpened(id)
