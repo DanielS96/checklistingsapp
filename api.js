@@ -1,3 +1,5 @@
+const WORKER_URL = "https://checklistings.dan-svistunov.workers.dev"
+
 export async function loadCategories(){
   const res = await fetch('categories.json')
   return await res.json()
@@ -5,36 +7,34 @@ export async function loadCategories(){
 
 export async function loadChecklists(categoryId){
   const res = await fetch(`data/${categoryId}/index.json`)
-  const files = await res.json()
-
-  const data = await Promise.all(files.map(async f=>{
-    const r = await fetch(`data/${categoryId}/${f}`)
-    return await r.json()
-  }))
-
-  return data
+  return await res.json()
 }
 
 /* =========================
-   💳 TELEGRAM STARS PAYMENT
+   💳 PAYMENT (FIXED)
    ========================= */
 
 export async function createInvoice(checklistId){
-  const res = await fetch('/api/create-invoice', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
+  const res = await fetch(`${WORKER_URL}/api/create-invoice`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       checklistId,
       amount: 100
     })
   })
 
-  if(!res.ok) throw new Error('Invoice error')
+  const text = await res.text()
 
-  return await res.json() // { invoiceUrl }
+  try {
+    return JSON.parse(text)
+  } catch (e) {
+    console.error("Worker returned NON-JSON:", text)
+    throw new Error("Invalid Worker response")
+  }
 }
 
 export async function getPaymentStatus(id){
-  const res = await fetch(`/api/payment-status?id=${id}`)
-  return await res.json() // { paid: true }
+  const res = await fetch(`${WORKER_URL}/api/payment-status?id=${id}`)
+  return await res.json()
 }
