@@ -4,16 +4,14 @@
   <meta charset="UTF-8" />
   <title>Checklistings</title>
 
-<button id="payBtn">Pay 100 Stars ⭐</button>
-  
-  <!-- Telegram SDK (НЕ ломает страницу если нет Telegram) -->
+  <!-- Telegram WebApp -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
-      background: #fafafa;
+      background: #f5f5f5;
     }
 
     .card {
@@ -25,28 +23,32 @@
     }
 
     button {
-      padding: 14px 18px;
+      width: 100%;
+      padding: 16px;
       font-size: 16px;
       border-radius: 10px;
       border: none;
       background: #0088ff;
       color: white;
     }
-
-    .warn {
-      color: #ff4444;
-      font-size: 14px;
-    }
   </style>
 </head>
 
 <body>
 
-  <div id="app">
-    Loading...
+  <div class="card">
+    <h2>Checklistings 🚀</h2>
+    <p>Test Telegram Stars payment</p>
   </div>
 
-  <script type="module" src="./js/app.js"></script>
+  <div class="card">
+    <button id="payBtn">
+      Pay 100 Stars ⭐
+    </button>
+  </div>
+
+  <!-- ВАЖНО: путь к js -->
+  <script src="./js/app.js"></script>
 
 </body>
 </html>
