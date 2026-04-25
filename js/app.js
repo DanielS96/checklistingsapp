@@ -32,7 +32,6 @@ const setOpened = (id) => {
   localStorage.setItem('opened', JSON.stringify(o))
 }
 
-// 💰 PAYMENT STORAGE
 const isPaid = (id) => {
   return localStorage.getItem("paid_" + id) === "true"
 }
@@ -48,15 +47,6 @@ function render() {
   if (state.screen === 'categories') renderCategories()
   if (state.screen === 'list') renderList()
   if (state.screen === 'check') renderCheck()
-}
-
-// ================= LEVEL =================
-
-function getLevel(percent) {
-  if (percent < 20) return 'Новичок'
-  if (percent < 50) return 'Любитель'
-  if (percent < 80) return 'Продвинутый'
-  return 'Мастер'
 }
 
 // ================= CATEGORIES =================
@@ -79,39 +69,22 @@ async function renderCategories() {
     categoriesWithProgress.length
   )
 
-  const level = getLevel(percent)
-
   categoriesWithProgress.sort((a, b) => b.percent - a.percent)
 
   app.innerHTML = `
     <h1>Checklistings</h1>
 
     <div class="dashboard">
-      <div class="dashboard-title">Ваш прогресс</div>
-      <div class="dashboard-level">${level}</div>
-
-      <div class="dashboard-bar">
-        <div class="dashboard-fill" style="width:${percent}%"></div>
-      </div>
-
-      <div style="margin-top:6px;">${percent}% завершено</div>
+      <div>Прогресс: ${percent}%</div>
     </div>
 
     ${categoriesWithProgress.map(c => `
       <div class="card category" onclick="openCategory('${c.id}')">
-        <div class="category-header">
-          <div>
-            <div class="category-title">${c.icon} ${c.title}</div>
-            <div style="font-size:13px;color:#666;margin-top:4px;">
-              ${c.description}
-            </div>
-          </div>
-          <div class="category-percent">${c.percent}%</div>
+        <div>
+          <b>${c.icon} ${c.title}</b>
+          <div>${c.description}</div>
         </div>
-
-        <div class="progress-bar">
-          <div class="progress-fill" style="width:${c.percent}%"></div>
-        </div>
+        <div>${c.percent}%</div>
       </div>
     `).join('')}
   `
@@ -126,49 +99,18 @@ window.openCategory = async (id) => {
   render()
 }
 
-// ================= STATUS =================
-
-function getStatus(id) {
-  const progress = getProgress()
-  const opened = getOpened()
-
-  if (progress[id]) return { text: 'Выполнен', class: 'done' }
-  if (opened[id]) return { text: 'Не завершен', class: 'progress' }
-  return { text: 'Новый', class: 'new' }
-}
-
 // ================= LIST =================
 
 function renderList() {
   app.innerHTML = `
-    <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
+    <button onclick="goBack()">← Назад</button>
 
-    ${state.checklists.map(c => {
-      const s = getStatus(c.id)
-      const paid = isPaid(c.id)
-
-      return `
-        <div class="card" onclick="openChecklist('${c.id}')">
-          <div class="card-row">
-            <div>
-              <div style="font-weight:700;font-size:16px;">
-                ${c.title}
-              </div>
-
-              ${c.subtitle ? `
-                <div class="checklist-subtitle">
-                  ${c.subtitle}
-                </div>
-              ` : ''}
-            </div>
-
-            <div class="status ${paid ? 'done' : s.class}">
-              ${paid ? 'Куплено' : s.text}
-            </div>
-          </div>
-        </div>
-      `
-    }).join('')}
+    ${state.checklists.map(c => `
+      <div class="card" onclick="openChecklist('${c.id}')">
+        <b>${c.title}</b>
+        <div>${isPaid(c.id) ? "Куплено ⭐" : "100 ⭐"}</div>
+      </div>
+    `).join('')}
   `
 }
 
@@ -178,7 +120,6 @@ window.openChecklist = async (id) => {
 
   const checklist = state.checklists.find(x => x.id === id)
 
-  // ❗ если не куплено — платим
   if (!isPaid(id)) {
     return showPayModal(checklist)
   }
@@ -193,58 +134,31 @@ window.openChecklist = async (id) => {
 
 async function showPayModal(checklist) {
 
-  const modal = document.createElement('div')
-  modal.className = 'modal'
+  const userId = tg?.initDataUnsafe?.user?.id
 
-  modal.innerHTML = `
-    <div class="modal-content">
-      <h3>🔒 Платный чек-лист</h3>
-      <p>Стоимость: <b>100 Stars</b></p>
-
-      <button class="btn btn-primary" id="payBtn">
-        Оплатить
-      </button>
-
-      <button class="btn btn-ghost" onclick="this.closest('.modal').remove()">
-        Отмена
-      </button>
-    </div>
-  `
-
-  document.body.appendChild(modal)
-
-  document.getElementById("payBtn").onclick = async () => {
-
-    const userId = tg?.initDataUnsafe?.user?.id
-
-    const res = await fetch(`${BACKEND_URL}/create-invoice`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId,
-        checklistId: checklist.id,
-        title: checklist.title
-      })
+  const res = await fetch(`${BACKEND_URL}/create-invoice`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId,
+      checklistId: checklist.id,
+      title: checklist.title
     })
+  })
 
-    const data = await res.json()
+  const data = await res.json()
 
-    console.log("INVOICE RESPONSE:", data)
+  console.log("INVOICE RESPONSE:", data)
 
-    // ❗ ВАЖНО: Telegram сам открывает оплату
-    // НЕ используем invoice_url вообще
+  // ❗ ВАЖНО:
+  // Telegram сам открывает оплату
+  // ничего не вызываем вручную
 
-    tg.openInvoice(data.result, (status) => {
-
-      console.log("PAY STATUS:", status)
-
-      if (status === "paid") {
-        localStorage.setItem("paid_" + checklist.id, "true")
-        modal.remove()
-        window.openChecklist(checklist.id)
-      }
-    })
-  }
+  tg.showPopup({
+    title: "Оплата ⭐",
+    message: "Открой чат с ботом и заверши оплату",
+    buttons: [{ type: "ok" }]
+  })
 }
 
 // ================= CHECKLIST =================
@@ -253,82 +167,35 @@ function renderCheck() {
   const c = state.current
 
   app.innerHTML = `
-    <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
+    <button onclick="goBack()">← Назад</button>
 
     <h2>${c.title}</h2>
 
-    ${c.description ? `
-      <div class="checklist-description">
-        ${c.description}
-      </div>
-    ` : ''}
+    ${c.description ? `<p>${c.description}</p>` : ''}
 
     ${(c.items || []).map((item, i) => `
       <div class="item">
-        <div class="item-header" onclick="toggle(${i})">
+        <div onclick="toggle(${i})">
           ${item.emoji} ${item.title}
         </div>
 
-        <div class="item-body" id="i${i}">
+        <div id="i${i}" style="display:none">
           <p>${item.text}</p>
 
-          ${item.source ? `
-            <div style="font-size:12px;color:#888;margin-top:8px;">
-              📚 ${item.source}
-            </div>
-          ` : ''}
+          ${item.source ? `<small>📚 ${item.source}</small>` : ''}
 
-          ${item.tip ? `
-            <div style="margin-top:8px;padding:10px;background:#f2f2f7;border-radius:10px;font-size:13px;">
-              💡 ${item.tip}
-            </div>
-          ` : ''}
+          ${item.tip ? `<div>💡 ${item.tip}</div>` : ''}
         </div>
       </div>
     `).join('')}
-
-    ${renderQuiz(c)}
   `
 }
 
 // ================= TOGGLE =================
 
 window.toggle = (i) => {
-  const item = document.querySelectorAll('.item')[i]
-  const body = document.getElementById('i' + i)
-
-  const isOpen = body.style.display === 'block'
-  body.style.display = isOpen ? 'none' : 'block'
-  item.classList.toggle('open')
-}
-
-// ================= QUIZ =================
-
-function renderQuiz(c) {
-  if (!c.quiz) return ''
-
-  return `
-    <div class="quiz-section">
-      <div class="quiz-title">🧠 Мини-тест</div>
-
-      ${c.quiz.map((q, i) => `
-        <div class="quiz-question">
-          <p>${q.q}</p>
-
-          ${q.a.map((a, j) => `
-            <label class="quiz-option">
-              <input type="radio" name="q${i}" value="${j}">
-              ${a}
-            </label>
-          `).join('')}
-        </div>
-      `).join('')}
-
-      <div style="text-align:center;margin-top:12px;">
-        <button class="btn btn-primary" onclick="checkQuiz()">Проверить</button>
-      </div>
-    </div>
-  `
+  const el = document.getElementById('i' + i)
+  el.style.display = el.style.display === 'block' ? 'none' : 'block'
 }
 
 // ================= BACK =================
