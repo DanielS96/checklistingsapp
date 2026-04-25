@@ -13,15 +13,16 @@ async function pay(){
 
   try {
 
-    const res = await fetch("https://checklistings.dan-svistunov.workers.dev", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        userId: user.id
-      })
-    })
+    const res = await fetch(WORKER_URL, {
+  method: "POST",
+  mode: "cors", // 👈 важно
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    userId: user.id
+  })
+})
 
     const data = await res.json()
 
