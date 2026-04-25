@@ -1,5 +1,7 @@
 import { loadCategories, loadChecklists } from './api.js'
 
+const tg = window.Telegram?.WebApp
+
 const app = document.getElementById('app')
 
 let state = {
