@@ -1,31 +1,14 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Checklist App</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklistings</title>
+<link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-
-  <h1>Premium Checklist</h1>
-
-  <button onclick="pay()">Оплатить 100 ⭐</button>
-
-  <script>
-    const WORKER_URL = "https://checklistings.dan-svistunov.workers.dev/";
-
-    async function pay() {
-      const chat_id = prompt("Telegram chat id:");
-
-      const res = await fetch(WORKER_URL + "/pay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id })
-      });
-
-      const data = await res.json();
-      console.log(data);
-    }
-  </script>
-
+<div id="app"></div>
+<script type="module" src="app.js"></script>
 </body>
 </html>
