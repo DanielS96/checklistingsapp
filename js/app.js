@@ -3,11 +3,30 @@ import { loadCategories, loadChecklists } from './api.js'
 const app = document.getElementById('app')
 
 let state = {
+  lang: null,
   screen: 'categories',
   categories: [],
   category: null,
   checklists: [],
   current: null
+}
+
+function detectLang(){
+  const tg = window.Telegram?.WebApp
+
+  if(tg?.initDataUnsafe?.user?.language_code){
+    const lang = tg.initDataUnsafe.user.language_code
+
+    if(lang.startsWith('ru')) return 'ru'
+    if(lang.startsWith('es')) return 'es'
+    return 'en'
+  }
+
+  const browserLang = navigator.language || 'en'
+
+  if(browserLang.startsWith('ru')) return 'ru'
+  if(browserLang.startsWith('es')) return 'es'
+  return 'en'
 }
 
 // STORAGE
@@ -36,7 +55,17 @@ function getLevel(percent){
 
 // INIT
 async function init(){
-  state.categories = await loadCategories()
+  let savedLang = localStorage.getItem('lang')
+
+  if(!savedLang){
+    savedLang = detectLang()
+    localStorage.setItem('lang', savedLang)
+  }
+
+  state.lang = savedLang
+
+  state.categories = await loadCategories(state.lang)
+
   render()
 }
 
