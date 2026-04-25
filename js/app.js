@@ -10,7 +10,7 @@ let state = {
   current: null
 }
 
-// ===== STORAGE =====
+// ================= STORAGE =================
 const getProgress = () => JSON.parse(localStorage.getItem('progress') || '{}')
 const getOpened = () => JSON.parse(localStorage.getItem('opened') || '{}')
 
@@ -26,7 +26,7 @@ const setOpened = (id)=>{
   localStorage.setItem('opened', JSON.stringify(o))
 }
 
-// ===== LEVEL =====
+// ================= LEVEL =================
 function getLevel(percent){
   if(percent < 20) return 'Новичок'
   if(percent < 50) return 'Любитель'
@@ -34,9 +34,14 @@ function getLevel(percent){
   return 'Мастер'
 }
 
-// ===== INIT =====
+// ================= INIT =================
 async function init(){
-  state.categories = await loadCategories()
+  try {
+    state.categories = await loadCategories()
+  } catch (e) {
+    console.error(e)
+    state.categories = []
+  }
   render()
 }
 
@@ -46,27 +51,34 @@ function render(){
   if(state.screen === 'check') renderCheck()
 }
 
-// ===================== CATEGORIES =====================
+// ================= CATEGORIES =================
 async function renderCategories(){
+
   const progress = getProgress()
 
-  const categoriesWithProgress = await Promise.all(
-    state.categories.map(async (c)=>{
-      const lists = await loadChecklists(c.id)
-      const total = lists.length
-      const done = lists.filter(l => progress[l.id]).length
-      const percent = total ? Math.round(done / total * 100) : 0
-      return { ...c, percent }
-    })
-  )
+  let categoriesWithProgress = []
 
-  const percent = Math.round(
-    categoriesWithProgress.reduce((acc,c)=>acc+c.percent,0) / categoriesWithProgress.length
-  )
+  try {
+    categoriesWithProgress = await Promise.all(
+      (state.categories || []).map(async (c)=>{
+        const lists = await loadChecklists(c.id) || []
+        const total = lists.length
+        const done = lists.filter(l => progress[l.id]).length
+        const percent = total ? Math.round(done / total * 100) : 0
+        return { ...c, percent }
+      })
+    )
+  } catch (e) {
+    console.error(e)
+  }
+
+  const percent = categoriesWithProgress.length
+    ? Math.round(categoriesWithProgress.reduce((a,c)=>a+c.percent,0)/categoriesWithProgress.length)
+    : 0
 
   const level = getLevel(percent)
 
-  categoriesWithProgress.sort((a,b)=> b.percent - a.percent)
+  categoriesWithProgress.sort((a,b)=> (b.percent||0) - (a.percent||0))
 
   app.innerHTML = `
     <h1>Checklistings</h1>
@@ -82,34 +94,40 @@ async function renderCategories(){
       <div style="margin-top:6px;">${percent}% завершено</div>
     </div>
 
-    ${categoriesWithProgress.map(c=>`
+    ${(categoriesWithProgress || []).map(c=>`
       <div class="card category" onclick="openCategory('${c.id}')">
         <div class="category-header">
           <div>
-            <div class="category-title">${c.icon} ${c.title}</div>
+            <div class="category-title">${c.icon || ''} ${c.title || 'Без названия'}</div>
             <div style="font-size:13px;color:#666;margin-top:4px;">
-              ${c.description}
+              ${c.description || ''}
             </div>
           </div>
-          <div class="category-percent">${c.percent}%</div>
+          <div class="category-percent">${c.percent || 0}%</div>
         </div>
 
         <div class="progress-bar">
-          <div class="progress-fill" style="width:${c.percent}%"></div>
+          <div class="progress-fill" style="width:${c.percent || 0}%"></div>
         </div>
       </div>
     `).join('')}
   `
 }
 
-// ===================== CATEGORY =====================
+// ================= CATEGORY =================
 window.openCategory = async (id)=>{
-  state.category = id
-  state.checklists = await loadChecklists(id)
-  state.screen = 'list'
+  try {
+    state.category = id
+    state.checklists = await loadChecklists(id) || []
+    state.screen = 'list'
+  } catch (e) {
+    console.error(e)
+    state.checklists = []
+  }
   render()
 }
 
+// ================= STATUS =================
 function getStatus(id){
   const progress = getProgress()
   const opened = getOpened()
@@ -119,20 +137,24 @@ function getStatus(id){
   return {text:'Новый', class:'new'}
 }
 
-// ===================== LIST =====================
+// ================= LIST =================
 function renderList(){
+
+  const list = Array.isArray(state.checklists) ? state.checklists : []
+
   app.innerHTML = `
     <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
 
-    ${state.checklists.map(c=>{
+    ${list.map(c=>{
       const s = getStatus(c.id)
 
       return `
         <div class="card" onclick="openChecklist('${c.id}')">
+
           <div class="card-row">
             <div>
               <div style="font-weight:700;font-size:16px;">
-                ${c.title}
+                ${c.title || 'Без названия'}
               </div>
 
               ${c.subtitle ? `
@@ -148,7 +170,8 @@ function renderList(){
           </div>
 
           ${c.price ? `
-            <button class="btn btn-primary" onclick="event.stopPropagation(); pay('${c.id}')">
+            <button class="btn btn-primary"
+              onclick="event.stopPropagation(); pay('${c.id}')">
               Оплатить ${c.price} ⭐
             </button>
           ` : ''}
@@ -158,57 +181,59 @@ function renderList(){
   `
 }
 
-// ===================== PAYMENT =====================
+// ================= PAYMENT (STARS) =================
 async function pay(checklistId){
 
-  const userId = "guest_" + Math.random().toString(36).slice(2)
+  try {
+    const userId = "web_" + Math.random().toString(36).slice(2)
 
-  const res = await fetch("https://checklistings.dan-svistunov.workers.dev", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      userId,
-      checklistId
+    const res = await fetch("https://checklistings.dan-svistunov.workers.dev", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, checklistId })
     })
-  })
 
-  const data = await res.json()
+    const data = await res.json()
 
-  if(data.ok){
-    window.location.href = data.url
-  } else {
-    alert(data.error || "Ошибка оплаты")
+    if(data?.ok && data.url){
+      window.location.href = data.url
+    } else {
+      alert(data?.error || "Ошибка оплаты")
+    }
+
+  } catch (e) {
+    console.error(e)
+    alert("Ошибка соединения с оплатой")
   }
 }
 
 window.pay = pay
 
-// ===================== CHECKLIST =====================
+// ================= CHECKLIST =================
 window.openChecklist = (id)=>{
   setOpened(id)
-  state.current = state.checklists.find(x=>x.id===id)
+  state.current = (state.checklists || []).find(x=>x.id===id)
   state.screen = 'check'
   render()
 }
 
 function renderCheck(){
-  const c = state.current
+
+  const c = state.current || { items: [] }
 
   app.innerHTML = `
     <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
 
-    <h2>${c.title}</h2>
+    <h2>${c.title || ''}</h2>
 
     ${(c.items || []).map((item,i)=>`
       <div class="item">
         <div class="item-header" onclick="toggle(${i})">
-          ${item.emoji} ${item.title}
+          ${item.emoji || ''} ${item.title || ''}
         </div>
 
         <div class="item-body" id="i${i}">
-          <p>${item.text}</p>
+          <p>${item.text || ''}</p>
         </div>
       </div>
     `).join('')}
@@ -224,10 +249,9 @@ window.toggle = (i)=>{
   item.classList.toggle('open')
 }
 
-// ===================== BACK =====================
+// ================= BACK =================
 window.goBack = ()=>{
-  if(state.screen === 'check') state.screen = 'list'
-  else state.screen = 'categories'
+  state.screen = state.screen === 'check' ? 'list' : 'categories'
   render()
 }
 
