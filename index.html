@@ -1,54 +1,31 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Checklistings</title>
-
-  <!-- Telegram WebApp -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f5f5f5;
-    }
-
-    .card {
-      background: white;
-      padding: 16px;
-      border-radius: 12px;
-      margin-bottom: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-
-    button {
-      width: 100%;
-      padding: 16px;
-      font-size: 16px;
-      border-radius: 10px;
-      border: none;
-      background: #0088ff;
-      color: white;
-    }
-  </style>
+  <title>Checklist App</title>
 </head>
-
 <body>
 
-  <div class="card">
-    <h2>Checklistings 🚀</h2>
-    <p>Test Telegram Stars payment</p>
-  </div>
+  <h1>Premium Checklist</h1>
 
-  <div class="card">
-    <button id="payBtn">
-      Pay 100 Stars ⭐
-    </button>
-  </div>
+  <button onclick="pay()">Оплатить 100 ⭐</button>
 
-  <!-- ВАЖНО: путь к js -->
-  <script src="./js/app.js"></script>
+  <script>
+    const WORKER_URL = "https://YOUR-WORKER.workers.dev";
+
+    async function pay() {
+      const chat_id = prompt("Telegram chat id:");
+
+      const res = await fetch(WORKER_URL + "/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id })
+      });
+
+      const data = await res.json();
+      console.log(data);
+    }
+  </script>
 
 </body>
 </html>
