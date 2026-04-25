@@ -37,7 +37,7 @@ function setLang(lang){
   localStorage.setItem('lang', lang)
 }
 
-/* ---------------- SIMPLE TRANSLATION ---------------- */
+/* ---------------- TRANSLATION ---------------- */
 
 const cache = JSON.parse(localStorage.getItem('i18n_cache') || '{}')
 
@@ -100,17 +100,29 @@ function getLevel(percent){
   return 'Мастер'
 }
 
-/* ---------------- LANG UI ---------------- */
+/* ---------------- LANG BUTTON (FIXED) ---------------- */
 
-function langButton(){
-  const l = LANGS[state.lang]
+function createLangButton(){
+  const btn = document.createElement('div')
+  btn.className = 'lang-btn'
+  btn.id = 'langBtn'
 
-  return `
-    <div class="lang-btn" onclick="toggleMenu()">
-      ${l.flag} ${state.lang.toUpperCase()}
-    </div>
-  `
+  btn.onclick = toggleMenu
+
+  document.body.appendChild(btn)
+
+  updateLangButton()
 }
+
+function updateLangButton(){
+  const btn = document.getElementById('langBtn')
+  if(!btn) return
+
+  const l = LANGS[state.lang]
+  btn.innerHTML = `${l.flag} ${state.lang.toUpperCase()}`
+}
+
+/* ---------------- MENU ---------------- */
 
 window.toggleMenu = ()=>{
   const exist = document.getElementById('langMenu')
@@ -131,9 +143,13 @@ window.toggleMenu = ()=>{
 
 window.changeLang = async (lang)=>{
   setLang(lang)
+
   document.getElementById('langMenu')?.remove()
 
   await loadDict(lang)
+
+  updateLangButton()
+
   render()
 }
 
@@ -145,6 +161,8 @@ async function init(){
   await loadDict(state.lang)
 
   state.categories = await loadCategories()
+
+  createLangButton()
 
   render()
 }
@@ -173,8 +191,6 @@ async function render(){
   const level = getLevel(totalPercent)
 
   app.innerHTML = `
-    ${langButton()}
-
     <div class="card">
       <div>${t.level}: <b>${level}</b></div>
       <div>${t.progress}: ${totalPercent}%</div>
