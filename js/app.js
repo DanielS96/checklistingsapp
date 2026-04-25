@@ -1,5 +1,40 @@
 import { loadCategories, loadChecklists } from './api.js'
 
+const t = {
+  ru: {
+    back: 'Назад',
+    progress: 'Ваш прогресс',
+    completed: 'Выполнен',
+    new: 'Новый',
+    notCompleted: 'Не завершен',
+    check: 'Проверить',
+    tryAgain: 'Попробуй ещё раз',
+    excellent: 'Отлично!'
+  },
+  en: {
+    back: 'Back',
+    progress: 'Your progress',
+    completed: 'Completed',
+    new: 'New',
+    notCompleted: 'In progress',
+    check: 'Check',
+    tryAgain: 'Try again',
+    excellent: 'Great job!'
+  },
+  es: {
+    back: 'Atrás',
+    progress: 'Tu progreso',
+    completed: 'Completado',
+    new: 'Nuevo',
+    notCompleted: 'En progreso',
+    check: 'Comprobar',
+    tryAgain: 'Inténtalo otra vez',
+    excellent: '¡Excelente!'
+  }
+}
+
+const tr = () => t[state.lang]
+
 const app = document.getElementById('app')
 
 let state = {
@@ -107,7 +142,7 @@ async function renderCategories(){
 </div>
 
     <div class="dashboard">
-      <div class="dashboard-title">Ваш прогресс</div>
+      <div class="dashboard-title">${tr().progress}</div>
       <div class="dashboard-level">${level}</div>
 
       <div class="dashboard-bar">
@@ -149,14 +184,14 @@ function getStatus(id){
   const progress = getProgress()
   const opened = getOpened()
 
-  if(progress[id]) return {text:'Выполнен', class:'done'}
-  if(opened[id]) return {text:'Не завершен', class:'progress'}
-  return {text:'Новый', class:'new'}
+  if(progress[id]) return {text:'${tr().completed}', class:'done'}
+  if(opened[id]) return {text:'${tr().notCompleted', class:'progress'}
+  return {text:'${tr().new', class:'new'}
 }
 
 function renderList(){
   app.innerHTML = `
-    <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
+    <button class="btn btn-ghost" onclick="goBack()">← ${tr().back}</button>
 
     ${state.checklists.map(c=>{
       const s = getStatus(c.id)
@@ -198,7 +233,7 @@ function renderCheck(){
   const c = state.current
 
   app.innerHTML = `
-    <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
+    <button class="btn btn-ghost" onclick="goBack()">← ${tr().back}</button>
 
     <h2>${c.title}</h2>
 
@@ -267,7 +302,7 @@ function renderQuiz(c){
       `).join('')}
 
       <div style="text-align:center;margin-top:12px;">
-        <button class="btn btn-primary" onclick="checkQuiz()">Проверить</button>
+        <button class="btn btn-primary" onclick="checkQuiz()">${tr().check}</button>
       </div>
     </div>
   `
