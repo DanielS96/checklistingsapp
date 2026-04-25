@@ -32,7 +32,7 @@ const setOpened = (id) => {
   localStorage.setItem('opened', JSON.stringify(o))
 }
 
-// 💰 PAYMENT STORAGE
+// 💰 PAYMENT CHECK
 const isPaid = (id) => {
   return localStorage.getItem("paid_" + id) === "true"
 }
@@ -172,13 +172,12 @@ function renderList() {
   `
 }
 
-// ================= OPEN CHECKLIST (PAYWALL) =================
+// ================= PAYWALL =================
 
 window.openChecklist = async (id) => {
 
   const checklist = state.checklists.find(x => x.id === id)
 
-  // 💰 ВСЕГДА проверяем оплату
   if (!isPaid(id)) {
     return showPayModal(checklist)
   }
@@ -228,7 +227,6 @@ async function showPayModal(checklist) {
     })
 
     const data = await res.json()
-
     const invoiceUrl = data?.result?.invoice_url
 
     if (!invoiceUrl) {
@@ -251,13 +249,6 @@ async function showPayModal(checklist) {
 
 // ================= CHECKLIST =================
 
-window.openChecklist = (id) => {
-  setOpened(id)
-  state.current = state.checklists.find(x => x.id === id)
-  state.screen = 'check'
-  render()
-}
-
 function renderCheck() {
   const c = state.current
 
@@ -265,6 +256,12 @@ function renderCheck() {
     <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
 
     <h2>${c.title}</h2>
+
+    ${c.description ? `
+      <div class="checklist-description">
+        ${c.description}
+      </div>
+    ` : ''}
 
     ${(c.items || []).map((item, i) => `
       <div class="item">
@@ -274,6 +271,18 @@ function renderCheck() {
 
         <div class="item-body" id="i${i}">
           <p>${item.text}</p>
+
+          ${item.source ? `
+            <div style="font-size:12px;color:#888;margin-top:8px;">
+              📚 ${item.source}
+            </div>
+          ` : ''}
+
+          ${item.tip ? `
+            <div style="margin-top:8px;padding:10px;background:#f2f2f7;border-radius:10px;font-size:13px;">
+              💡 ${item.tip}
+            </div>
+          ` : ''}
         </div>
       </div>
     `).join('')}
