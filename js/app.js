@@ -1,42 +1,33 @@
-console.log("SCRIPT LOADED ✅")
+const WORKER_URL = "https://checklistings.dan-svistunov.workers.dev"
 
-const btn = document.getElementById("payBtn")
+async function payStars(){
 
-console.log("BUTTON:", btn)
-
-if(!btn){
-  console.error("BUTTON NOT FOUND ❌")
-}
-
-btn.onclick = async () => {
-
-  console.log("CLICK WORKS 🔥")
+  console.log("CLICK")
 
   try {
-    const res = await fetch("https://checklistings.dan-svistunov.workers.dev", {
+    const res = await fetch(WORKER_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        userId: "test",
-        checklistId: "test"
+        userId: 123456789 // важно: Telegram user id (пока тест)
       })
     })
 
-    console.log("REQUEST SENT 🚀")
-
     const data = await res.json()
 
-    console.log("RESPONSE:", data)
+    console.log(data)
 
-    if(data.ok){
-      window.location.href = data.url
-    } else {
+    if(!data.ok){
       alert(data.error)
+      return
     }
 
+    alert("Invoice sent! Check Telegram")
+
   } catch (e) {
-    console.error("ERROR:", e)
+    console.error(e)
+    alert("Error")
   }
 }
+
+window.payStars = payStars
