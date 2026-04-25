@@ -3,81 +3,79 @@ import { loadCategories, loadChecklists } from './api.js'
 const app = document.getElementById('app')
 
 let state = {
-  lang: 'en',
-  screen: 'categories',
+  lang: 'ru',
   categories: [],
-  checklists: [],
-  current: null
+  checklists: []
 }
 
-/* ---------------- I18N ---------------- */
-
-const t = {
-  ru: {
-    back: 'Назад',
-    progress: 'Ваш прогресс',
-    completed: 'Выполнен',
-    new: 'Новый',
-    notCompleted: 'В работе',
-    check: 'Проверить',
-    excellent: 'Отлично!',
-    tryAgain: 'Попробуй ещё раз'
-  },
-  en: {
-    back: 'Back',
-    progress: 'Your progress',
-    completed: 'Completed',
-    new: 'New',
-    notCompleted: 'In progress',
-    check: 'Check',
-    excellent: 'Great!',
-    tryAgain: 'Try again'
-  },
-  es: {
-    back: 'Atrás',
-    progress: 'Tu progreso',
-    completed: 'Completado',
-    new: 'Nuevo',
-    notCompleted: 'En progreso',
-    check: 'Comprobar',
-    excellent: '¡Excelente!',
-    tryAgain: 'Inténtalo otra vez'
-  }
-}
-
-const tr = () => t[state.lang] || t.en
-
-/* ---------------- LANGUAGE DETECT ---------------- */
+/* ---------------- DETECT LANGUAGE ---------------- */
 
 function detectLang(){
   const tg = window.Telegram?.WebApp
-
   const code = tg?.initDataUnsafe?.user?.language_code
 
-  if(code){
-    if(code.startsWith('ru')) return 'ru'
-    if(code.startsWith('es')) return 'es'
+  if(code && code.startsWith('ru')) return 'ru'
+  return navigator.language.startsWith('ru') ? 'ru' : 'en'
+}
+
+/* ---------------- SIMPLE TRANSLATOR ---------------- */
+
+const cache = JSON.parse(localStorage.getItem('cache') || '{}')
+
+async function translate(text, lang){
+  if(lang === 'ru') return text
+
+  const key = `${text}_${lang}`
+  if(cache[key]) return cache[key]
+
+  try {
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ru|${lang}`
+    )
+
+    const data = await res.json()
+    const translated = data.responseData.translatedText
+
+    cache[key] = translated
+    localStorage.setItem('cache', JSON.stringify(cache))
+
+    return translated
+  } catch {
+    return text
   }
+}
 
-  if(navigator.language.startsWith('ru')) return 'ru'
-  if(navigator.language.startsWith('es')) return 'es'
+/* ---------------- UI TEXT CACHE ---------------- */
 
-  return 'en'
+let t = {
+  back: 'Назад',
+  progress: 'Ваш прогресс',
+  completed: 'Выполнен',
+  new: 'Новый',
+  inProgress: 'Не завершен',
+  check: 'Проверить',
+  excellent: 'Отлично!',
+  tryAgain: 'Попробуй ещё раз'
+}
+
+async function loadDict(lang){
+  if(lang === 'ru') return
+
+  for(let key in t){
+    t[key] = await translate(t[key], lang)
+  }
 }
 
 /* ---------------- INIT ---------------- */
 
 async function init(){
-  let saved = localStorage.getItem('lang')
+  const saved = localStorage.getItem('lang')
 
-  if(!saved){
-    saved = detectLang()
-    localStorage.setItem('lang', saved)
-  }
+  state.lang = saved || detectLang()
 
-  state.lang = saved
+  await loadDict(state.lang)
 
-  state.categories = await loadCategories(state.lang)
+  state.categories = await loadCategories()
 
   render()
 }
@@ -85,52 +83,38 @@ async function init(){
 /* ---------------- RENDER ---------------- */
 
 function render(){
-  if(state.screen === 'categories') renderCategories()
-}
-
-/* ---------------- CATEGORIES ---------------- */
-
-async function renderCategories(){
-
-  const progress = {}
-
   app.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <h1>Checklistings</h1>
 
-      <button class="btn btn-ghost" onclick="toggleLang()">
+      <button onclick="toggleLang()">
         🌐 ${state.lang.toUpperCase()}
       </button>
     </div>
 
-    <div class="dashboard">
-      <div class="dashboard-title">${tr().progress}</div>
+    <div style="margin:10px 0;">
+      ${t.progress}
     </div>
 
     ${state.categories.map(c=>`
       <div class="card">
-        <div class="card-row">
-          <div>
-            <b>${c.icon} ${c.title}</b>
-            <div style="font-size:12px;color:#666">${c.description}</div>
-          </div>
+        <b>${c.icon} ${c.title}</b>
+        <div style="font-size:12px;color:#666">
+          ${c.description}
         </div>
       </div>
     `).join('')}
   `
 }
 
-/* ---------------- TOGGLE LANG ---------------- */
+/* ---------------- SWITCH LANGUAGE ---------------- */
 
 window.toggleLang = async ()=>{
-  const order = ['ru','en','es']
-  let i = order.indexOf(state.lang)
-  i = (i + 1) % order.length
+  state.lang = state.lang === 'ru' ? 'en' : 'ru'
 
-  state.lang = order[i]
   localStorage.setItem('lang', state.lang)
 
-  state.categories = await loadCategories(state.lang)
+  await loadDict(state.lang)
 
   render()
 }
