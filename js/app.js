@@ -111,6 +111,8 @@ function render(){
 
 // ===== CATEGORIES =====
 async function renderCategories(){
+  console.log('LANG:', state.lang)
+  console.log('T:', t[state.lang])
   const progress = getProgress()
 
   const categoriesWithProgress = await Promise.all(
