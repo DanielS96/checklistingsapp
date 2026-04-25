@@ -134,7 +134,7 @@ async function renderCategories(){
 // ===== CATEGORY =====
 window.openCategory = async (id)=>{
   state.category = id
-  state.checklists = await loadChecklists(id)
+  state.checklists = await loadChecklists(id, state.lang)
   state.screen = 'list'
   render()
 }
