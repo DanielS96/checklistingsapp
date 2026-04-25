@@ -1,87 +1,52 @@
-
 const tg = window.Telegram?.WebApp
-
-if(!tg){
-  document.body.innerHTML = "<h2>Open inside Telegram</h2>"
-  throw new Error("Not Telegram")
-}
-
 tg.ready()
 tg.expand()
 
 const user = tg.initDataUnsafe?.user
 
-// ================= PAY FUNCTION =================
-async function pay100Stars(){
+async function pay(){
 
   if(!user){
-    alert("No Telegram user")
+    alert("Open inside Telegram")
     return
   }
 
-  console.log("USER:", user)
-
   try {
 
-    // 👉 ВАЖНО: sendInvoice через Bot API нельзя из фронта напрямую
-    // поэтому используем Telegram WebApp API openInvoice
-
-    const invoicePayload = {
-      title: "Unlock Premium",
-      description: "Access for 100 Stars",
-      payload: `pay_${user.id}_${Date.now()}`,
-      provider_token: "",
-      currency: "XTR",
-      prices: [
-        {
-          label: "Access",
-          amount: 100
-        }
-      ]
-    }
-
-    // 👉 вызываем Bot API через backend НЕ НУЖЕН для TEST MODE:
-    // Telegram сам умеет открывать invoice через openInvoice если передать URL
-
-    const res = await fetch("https://api.telegram.org/8639535861:AAHYZugJ-y3Kdf6T86iG-PkU88BexxW70QU/createInvoiceLink", {
+    const res = await fetch("https://checklistings.dan-svistunov.workers.dev", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(invoicePayload)
+      body: JSON.stringify({
+        userId: user.id
+      })
     })
 
     const data = await res.json()
 
-    console.log("INVOICE:", data)
+    console.log(data)
 
     if(!data.ok){
-      alert(data.description || "Invoice error")
+      alert(data.error)
       return
     }
 
-    // 👉 ОТКРЫВАЕМ ОПЛАТУ В TELEGRAM
-    tg.openInvoice(data.result, (status) => {
+    tg.openInvoice(data.url, (status)=>{
 
-      console.log("PAY STATUS:", status)
+      console.log("STATUS:", status)
 
       if(status === "paid"){
-        alert("PAYMENT SUCCESS 🎉")
-        // тут unlock контента
-      }
-
-      if(status === "cancelled"){
-        alert("Payment cancelled")
+        alert("SUCCESS 🎉")
       }
 
     })
 
   } catch (e) {
     console.error(e)
-    alert("Payment error")
+    alert("Network error")
   }
 }
 
-// ================= BUTTON =================
 document.getElementById("payBtn")
-  .addEventListener("click", pay100Stars)
+  .addEventListener("click", pay)
