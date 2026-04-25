@@ -98,7 +98,13 @@ async function renderCategories(){
   categoriesWithProgress.sort((a,b)=> b.percent - a.percent)
 
   app.innerHTML = `
-    <h1>Checklistings</h1>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+  <h1>Checklistings</h1>
+
+  <button class="btn btn-ghost" onclick="toggleLang()">
+    🌐 ${state.lang.toUpperCase()}
+  </button>
+</div>
 
     <div class="dashboard">
       <div class="dashboard-title">Ваш прогресс</div>
