@@ -2,6 +2,7 @@ import { loadCategories, loadChecklists } from './api.js'
 
 const app = document.getElementById('app')
 
+// ================= STATE =================
 let state = {
   screen: 'categories',
   categories: [],
@@ -13,35 +14,17 @@ let state = {
 // ================= STORAGE =================
 const getProgress = () => JSON.parse(localStorage.getItem('progress') || '{}')
 const getOpened = () => JSON.parse(localStorage.getItem('opened') || '{}')
+const getPaid = () => JSON.parse(localStorage.getItem('paid') || '{}')
 
-const setDone = (id)=>{
-  const p = getProgress()
+const setPaid = (id)=>{
+  const p = getPaid()
   p[id] = true
-  localStorage.setItem('progress', JSON.stringify(p))
-}
-
-const setOpened = (id)=>{
-  const o = getOpened()
-  o[id] = true
-  localStorage.setItem('opened', JSON.stringify(o))
-}
-
-// ================= LEVEL =================
-function getLevel(percent){
-  if(percent < 20) return 'Новичок'
-  if(percent < 50) return 'Любитель'
-  if(percent < 80) return 'Продвинутый'
-  return 'Мастер'
+  localStorage.setItem('paid', JSON.stringify(p))
 }
 
 // ================= INIT =================
 async function init(){
-  try {
-    state.categories = await loadCategories()
-  } catch (e) {
-    console.error(e)
-    state.categories = []
-  }
+  state.categories = await loadCategories()
   render()
 }
 
@@ -56,58 +39,47 @@ async function renderCategories(){
 
   const progress = getProgress()
 
-  let categoriesWithProgress = []
+  const categories = await Promise.all(
+    state.categories.map(async (c)=>{
+      const lists = await loadChecklists(c.id)
+      const done = lists.filter(l => progress[l.id]).length
+      const percent = lists.length ? Math.round(done / lists.length * 100) : 0
+      return { ...c, percent }
+    })
+  )
 
-  try {
-    categoriesWithProgress = await Promise.all(
-      (state.categories || []).map(async (c)=>{
-        const lists = await loadChecklists(c.id) || []
-        const total = lists.length
-        const done = lists.filter(l => progress[l.id]).length
-        const percent = total ? Math.round(done / total * 100) : 0
-        return { ...c, percent }
-      })
-    )
-  } catch (e) {
-    console.error(e)
-  }
-
-  const percent = categoriesWithProgress.length
-    ? Math.round(categoriesWithProgress.reduce((a,c)=>a+c.percent,0)/categoriesWithProgress.length)
+  const total = categories.length
+    ? Math.round(categories.reduce((a,b)=>a+b.percent,0)/categories.length)
     : 0
-
-  const level = getLevel(percent)
-
-  categoriesWithProgress.sort((a,b)=> (b.percent||0) - (a.percent||0))
 
   app.innerHTML = `
     <h1>Checklistings</h1>
 
     <div class="dashboard">
       <div class="dashboard-title">Ваш прогресс</div>
-      <div class="dashboard-level">${level}</div>
+      <div class="dashboard-level">Пользователь</div>
 
       <div class="dashboard-bar">
-        <div class="dashboard-fill" style="width:${percent}%"></div>
+        <div class="dashboard-fill" style="width:${total}%"></div>
       </div>
 
-      <div style="margin-top:6px;">${percent}% завершено</div>
+      <div style="margin-top:6px;">${total}% завершено</div>
     </div>
 
-    ${(categoriesWithProgress || []).map(c=>`
+    ${categories.map(c=>`
       <div class="card category" onclick="openCategory('${c.id}')">
         <div class="category-header">
           <div>
-            <div class="category-title">${c.icon || ''} ${c.title || 'Без названия'}</div>
+            <div class="category-title">${c.icon || ''} ${c.title}</div>
             <div style="font-size:13px;color:#666;margin-top:4px;">
               ${c.description || ''}
             </div>
           </div>
-          <div class="category-percent">${c.percent || 0}%</div>
+          <div class="category-percent">${c.percent}%</div>
         </div>
 
         <div class="progress-bar">
-          <div class="progress-fill" style="width:${c.percent || 0}%"></div>
+          <div class="progress-fill" style="width:${c.percent}%"></div>
         </div>
       </div>
     `).join('')}
@@ -116,14 +88,9 @@ async function renderCategories(){
 
 // ================= CATEGORY =================
 window.openCategory = async (id)=>{
-  try {
-    state.category = id
-    state.checklists = await loadChecklists(id) || []
-    state.screen = 'list'
-  } catch (e) {
-    console.error(e)
-    state.checklists = []
-  }
+  state.category = id
+  state.checklists = await loadChecklists(id)
+  state.screen = 'list'
   render()
 }
 
@@ -131,21 +98,27 @@ window.openCategory = async (id)=>{
 function getStatus(id){
   const progress = getProgress()
   const opened = getOpened()
+  const paid = getPaid()
 
   if(progress[id]) return {text:'Выполнен', class:'done'}
   if(opened[id]) return {text:'Не завершен', class:'progress'}
+  if(!paid[id] && state.checklists.find(x=>x.id===id)?.price) {
+    return {text:'🔒 Заблокирован', class:'new'}
+  }
   return {text:'Новый', class:'new'}
 }
 
 // ================= LIST =================
 function renderList(){
 
-  const list = Array.isArray(state.checklists) ? state.checklists : []
+  const list = state.checklists || []
+  const paid = getPaid()
 
   app.innerHTML = `
     <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
 
     ${list.map(c=>{
+      const locked = c.price && !paid[c.id]
       const s = getStatus(c.id)
 
       return `
@@ -154,13 +127,11 @@ function renderList(){
           <div class="card-row">
             <div>
               <div style="font-weight:700;font-size:16px;">
-                ${c.title || 'Без названия'}
+                ${c.title}
               </div>
 
               ${c.subtitle ? `
-                <div class="checklist-subtitle">
-                  ${c.subtitle}
-                </div>
+                <div class="checklist-subtitle">${c.subtitle}</div>
               ` : ''}
             </div>
 
@@ -169,10 +140,10 @@ function renderList(){
             </div>
           </div>
 
-          ${c.price ? `
+          ${locked ? `
             <button class="btn btn-primary"
               onclick="event.stopPropagation(); pay('${c.id}')">
-              Оплатить ${c.price} ⭐
+              🔒 Купить за ${c.price} ⭐
             </button>
           ` : ''}
         </div>
@@ -181,12 +152,12 @@ function renderList(){
   `
 }
 
-// ================= PAYMENT (STARS) =================
+// ================= PAYMENT =================
 async function pay(checklistId){
 
-  try {
-    const userId = "web_" + Math.random().toString(36).slice(2)
+  const userId = "web_" + Math.random().toString(36).slice(2)
 
+  try {
     const res = await fetch("https://checklistings.dan-svistunov.workers.dev", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -195,15 +166,16 @@ async function pay(checklistId){
 
     const data = await res.json()
 
-    if(data?.ok && data.url){
+    if(data?.ok){
+      // временно считаем как оплачено (MVP)
+      setPaid(checklistId)
       window.location.href = data.url
     } else {
-      alert(data?.error || "Ошибка оплаты")
+      alert(data.error || "Ошибка оплаты")
     }
 
   } catch (e) {
-    console.error(e)
-    alert("Ошибка соединения с оплатой")
+    alert("Ошибка соединения")
   }
 }
 
@@ -211,32 +183,76 @@ window.pay = pay
 
 // ================= CHECKLIST =================
 window.openChecklist = (id)=>{
-  setOpened(id)
-  state.current = (state.checklists || []).find(x=>x.id===id)
+  const paid = getPaid()
+
+  const item = state.checklists.find(x=>x.id===id)
+
+  // блок если не куплено
+  if(item?.price && !paid[id]){
+    alert("Сначала оплати доступ")
+    return
+  }
+
+  state.current = item
   state.screen = 'check'
   render()
 }
 
+// ================= CHECK VIEW =================
 function renderCheck(){
 
-  const c = state.current || { items: [] }
+  const c = state.current
 
   app.innerHTML = `
     <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
 
-    <h2>${c.title || ''}</h2>
+    <h2>${c.title}</h2>
+
+    ${c.description ? `
+      <div class="checklist-description">${c.description}</div>
+    ` : ''}
 
     ${(c.items || []).map((item,i)=>`
       <div class="item">
         <div class="item-header" onclick="toggle(${i})">
-          ${item.emoji || ''} ${item.title || ''}
+          ${item.emoji || ''} ${item.title}
         </div>
 
         <div class="item-body" id="i${i}">
           <p>${item.text || ''}</p>
+
+          ${item.source ? `<div style="font-size:12px;color:#888;margin-top:8px;">📚 ${item.source}</div>` : ''}
+
+          ${item.tip ? `<div style="margin-top:8px;padding:10px;background:#f2f2f7;border-radius:10px;font-size:13px;">💡 ${item.tip}</div>` : ''}
         </div>
       </div>
     `).join('')}
+
+    ${renderQuiz(c)}
+  `
+}
+
+// ================= QUIZ =================
+function renderQuiz(c){
+  if(!c.quiz) return ''
+
+  return `
+    <div class="quiz-section">
+      <div class="quiz-title">🧠 Мини-тест</div>
+
+      ${c.quiz.map((q,i)=>`
+        <div class="quiz-question">
+          <p>${q.q}</p>
+
+          ${q.a.map((a,j)=>`
+            <label class="quiz-option">
+              <input type="radio" name="q${i}" value="${j}">
+              ${a}
+            </label>
+          `).join('')}
+        </div>
+      `).join('')}
+    </div>
   `
 }
 
@@ -244,8 +260,8 @@ window.toggle = (i)=>{
   const item = document.querySelectorAll('.item')[i]
   const body = document.getElementById('i'+i)
 
-  const isOpen = body.style.display === 'block'
-  body.style.display = isOpen ? 'none' : 'block'
+  const open = body.style.display === 'block'
+  body.style.display = open ? 'none' : 'block'
   item.classList.toggle('open')
 }
 
