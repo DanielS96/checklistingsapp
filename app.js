@@ -77,7 +77,7 @@ async function payChecklist(id){
 
   } catch (e) {
     console.error("payment error", e)
-    alert("Ошибка оплаты")
+    alert(e.message)
   }
 }
 
