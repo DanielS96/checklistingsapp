@@ -416,34 +416,37 @@
                 }).join('');
         }
         
-        function renderOpened() {
-            const opened = allData.opened_ranking || [];
-            const maxVal = opened.length > 0 ? opened[0].opens : 1;
+    function renderOpened() {
+    const opened = allData.opened_ranking || [];
+    // Сортируем по not_completed (открытые, но не пройденные)
+    const sorted = opened.sort((a, b) => (b.not_completed || 0) - (a.not_completed || 0));
+    const maxVal = sorted.length > 0 ? Math.max(...sorted.map(o => o.not_completed || 0)) : 1;
+    
+    document.getElementById('ranking-opened').innerHTML = sorted.length === 0 ? '<div class="empty">Нет открытий</div>' :
+        sorted.map((cl, i) => {
+            const pos = i + 1;
+            const pct = Math.round(((cl.not_completed || 0) / maxVal) * 100);
+            let posClass = 'position-other', medal = pos;
+            if (pos === 1) { posClass = 'position-1'; medal = '🥇'; }
+            else if (pos === 2) { posClass = 'position-2'; medal = '🥈'; }
+            else if (pos === 3) { posClass = 'position-3'; medal = '🥉'; }
             
-            document.getElementById('ranking-opened').innerHTML = opened.length === 0 ? '<div class="empty">Нет открытий</div>' :
-                opened.map((cl, i) => {
-                    const pos = i + 1;
-                    const pct = Math.round((cl.opens / maxVal) * 100);
-                    let posClass = 'position-other', medal = pos;
-                    if (pos === 1) { posClass = 'position-1'; medal = '🥇'; }
-                    else if (pos === 2) { posClass = 'position-2'; medal = '🥈'; }
-                    else if (pos === 3) { posClass = 'position-3'; medal = '🥉'; }
-                    
-                    return `
-                        <div class="ranking-item">
-                            <div class="ranking-position ${posClass}">${medal}</div>
-                            <div class="ranking-info">
-                                <div class="ranking-title">${cl.title || cl.checklist_id}</div>
-                                <div class="ranking-bar"><div class="ranking-fill" style="width:${pct}%"></div></div>
-                            </div>
-                            <div class="ranking-stats">
-                                <div class="ranking-value">${cl.opens}</div>
-                                <div class="ranking-sub">открытий</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-        }
+            return `
+                <div class="ranking-item">
+                    <div class="ranking-position ${posClass}">${medal}</div>
+                    <div class="ranking-info">
+                        <div class="ranking-title">${cl.title || cl.checklist_id}</div>
+                        <div class="ranking-bar"><div class="ranking-fill" style="width:${pct}%"></div></div>
+                    </div>
+                    <div class="ranking-stats">
+                        <div class="ranking-value">${cl.not_completed || 0}</div>
+                        <div class="ranking-sub">открыто (не пройдено)</div>
+                        <div style="font-size:10px;color:#999;">всего открытий: ${cl.opens || 0}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+}
         
         function renderCategories() {
             const cats = allData.categories_ranking || [];
