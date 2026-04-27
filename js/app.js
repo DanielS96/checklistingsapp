@@ -194,6 +194,8 @@ function renderList() {
 
   app.innerHTML = `
     <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
+    <h2 style="margin-top:8px;">${cat.icon} ${cat.title}</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:16px;">${cat.description}</p>
     ${sorted.map(c => {
       const s = getStatus(c.id);
       const locked = needsPayment(c, cat);
@@ -214,7 +216,6 @@ function renderList() {
     }).join('')}
   `;
 }
-
 window.showPay = (id, title) => {
   const checklist = state.checklists.find(c => c.id === id);
   const subtitle = checklist?.subtitle || '';
