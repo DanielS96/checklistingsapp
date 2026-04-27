@@ -1,7 +1,7 @@
 // Cloudflare Worker - Checklistings
 // Полная версия с платежами, трекингом и аналитикой
 
-const BOT_TOKEN = '8665770210:AAFVL0MuxIiGmHntMHWSvgNzkGVPTchcUu4';
+const BOT_TOKEN = 'TOKEN';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
