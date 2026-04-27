@@ -20,16 +20,46 @@
   
   <title>Checklistings</title>
   
-  <!-- Подключаем Telegram WebApp API -->
+  <!-- Telegram WebApp API -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   
   <link rel="stylesheet" href="styles.css">
+  
+  <style>
+    /* Стили для кнопки теста */
+    .test-payment-link {
+      display: block;
+      text-align: center;
+      padding: 12px;
+      margin: 0 16px 16px;
+      background: linear-gradient(135deg, #ff9500, #ff6b00);
+      color: white;
+      border-radius: 16px;
+      font-weight: 600;
+      font-size: 15px;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
+      transition: transform 0.15s ease;
+    }
+    
+    .test-payment-link:active {
+      transform: scale(0.97);
+    }
+    
+    .test-payment-link span {
+      font-size: 18px;
+    }
+  </style>
 </head>
 
 <body>
   <div id="app"></div>
   
-  <!-- Основной файл приложения -->
+  <!-- Ссылка на тест оплаты -->
+  <a href="test-payment.html" class="test-payment-link">
+    <span>🧪</span> Тест платежей Telegram Stars
+  </a>
+  
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
