@@ -5,15 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Тест оплаты Telegram Stars</title>
     
-    <!-- Telegram WebApp API -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -22,10 +17,7 @@
             color: #333;
         }
         
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
+        .container { max-width: 500px; margin: 0 auto; }
         
         .header {
             background: linear-gradient(135deg, #007aff, #5856d6);
@@ -36,15 +28,8 @@
             text-align: center;
         }
         
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-        
-        .header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
+        .header h1 { font-size: 24px; margin-bottom: 8px; }
+        .header p { opacity: 0.9; font-size: 14px; }
         
         .card {
             background: white;
@@ -54,17 +39,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
         
-        .card h3 {
-            font-size: 18px;
-            margin-bottom: 8px;
-        }
-        
-        .price {
-            font-size: 24px;
-            font-weight: bold;
-            color: #ff9500;
-            margin: 8px 0;
-        }
+        .card h3 { font-size: 18px; margin-bottom: 8px; }
         
         .btn {
             display: block;
@@ -79,34 +54,13 @@
             margin-top: 8px;
         }
         
-        .btn:active {
-            transform: scale(0.97);
-        }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { background: #ccc !important; cursor: not-allowed; }
         
-        .btn-buy {
-            background: linear-gradient(135deg, #007aff, #5856d6);
-            color: white;
-        }
-        
-        .btn-buy:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .btn-check {
-            background: #f2f2f7;
-            color: #007aff;
-        }
-        
-        .btn-restore {
-            background: #34c759;
-            color: white;
-        }
-        
-        .btn-test {
-            background: #ff9500;
-            color: white;
-        }
+        .btn-buy { background: linear-gradient(135deg, #007aff, #5856d6); color: white; }
+        .btn-check { background: #f2f2f7; color: #007aff; }
+        .btn-restore { background: #34c759; color: white; }
+        .btn-test { background: #ff9500; color: white; }
         
         .status {
             margin-top: 8px;
@@ -116,20 +70,9 @@
             font-weight: 500;
         }
         
-        .status.success {
-            background: #e8f8ed;
-            color: #34c759;
-        }
-        
-        .status.error {
-            background: #ffe5e5;
-            color: #ff3b30;
-        }
-        
-        .status.info {
-            background: #e8f0fe;
-            color: #007aff;
-        }
+        .status.success { background: #e8f8ed; color: #34c759; }
+        .status.error { background: #ffe5e5; color: #ff3b30; }
+        .status.info { background: #e8f0fe; color: #007aff; }
         
         .log {
             background: #1c1c1e;
@@ -145,21 +88,10 @@
             word-break: break-all;
         }
         
-        .log .time {
-            color: #61afef;
-        }
-        
-        .log .error-log {
-            color: #e06c75;
-        }
-        
-        .log .success-log {
-            color: #98c379;
-        }
-        
-        .log .warn-log {
-            color: #e5c07b;
-        }
+        .log .time { color: #61afef; }
+        .log .error { color: #e06c75; }
+        .log .success { color: #98c379; }
+        .log .warn { color: #e5c07b; }
         
         .badge {
             display: inline-block;
@@ -170,14 +102,16 @@
             margin-left: 8px;
         }
         
-        .badge.ready {
-            background: #e8f8ed;
-            color: #34c759;
-        }
+        .badge.ready { background: #e8f8ed; color: #34c759; }
+        .badge.not-ready { background: #ffe5e5; color: #ff3b30; }
         
-        .badge.not-ready {
-            background: #ffe5e5;
-            color: #ff3b30;
+        pre { 
+            background: #f5f5f5; 
+            padding: 8px; 
+            border-radius: 8px; 
+            font-size: 11px; 
+            overflow-x: auto;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -185,7 +119,7 @@
     <div class="container">
         <div class="header">
             <h1>🧪 Тест оплаты Stars</h1>
-            <p>Проверка Telegram Payments API</p>
+            <p>checklistings.dan-svistunov.workers.dev</p>
         </div>
         
         <!-- Статус Telegram -->
@@ -196,33 +130,38 @@
             <div id="tg-info" style="font-size:13px;color:#666;margin-top:8px;">
                 Проверяю подключение...
             </div>
+            <pre id="tg-raw" style="display:none;"></pre>
         </div>
         
-        <!-- Тестовые кнопки оплаты -->
+        <!-- Тестовые кнопки -->
         <div class="card">
             <h3>💳 Тестовые платежи</h3>
             <p style="font-size:13px;color:#666;margin-bottom:12px;">
-                Нажмите для теста оплаты. Средства НЕ спишутся если отменить.
+                Нажмите для теста. Отмените чтобы не платить.
             </p>
             
-            <button class="btn btn-buy" onclick="testPayment(1)" id="btn-1">
+            <button class="btn btn-buy" onclick="testPayment(1, 'Тест 1 звезда')">
                 ⭐ Тест 1 Star
             </button>
             
-            <button class="btn btn-buy" onclick="testPayment(50)" id="btn-50">
-                ⭐⭐ Тест 50 Stars
+            <button class="btn btn-buy" onclick="testPayment(10, 'Тест 10 звезд')">
+                ⭐ Тест 10 Stars
             </button>
             
-            <button class="btn btn-buy" onclick="testPayment(100)" id="btn-100">
-                ⭐⭐⭐ Тест 100 Stars
+            <button class="btn btn-buy" onclick="testPayment(50, 'Тест 50 звезд')">
+                ⭐ Тест 50 Stars
             </button>
             
-            <button class="btn btn-test" onclick="testPaymentCustom()" id="btn-custom">
+            <button class="btn btn-buy" onclick="testPayment(100, 'Тест 100 звезд')">
+                ⭐ Тест 100 Stars
+            </button>
+            
+            <button class="btn btn-test" onclick="testPaymentCustom()">
                 🔢 Своя сумма
             </button>
         </div>
         
-        <!-- Восстановление -->
+        <!-- Действия -->
         <div class="card">
             <h3>🔄 Действия</h3>
             <button class="btn btn-restore" onclick="restorePurchases()">
@@ -231,12 +170,15 @@
             <button class="btn btn-check" onclick="checkAllPayments()">
                 Проверить все платежи
             </button>
+            <button class="btn btn-check" onclick="testWorkerConnection()">
+                Проверить связь с Worker
+            </button>
             <button class="btn btn-check" onclick="clearStorage()">
                 Очистить localStorage
             </button>
         </div>
         
-        <!-- История платежей -->
+        <!-- История -->
         <div class="card">
             <h3>📋 История платежей</h3>
             <div id="payment-history" style="font-size:13px;color:#666;">
@@ -248,7 +190,7 @@
         <div class="card">
             <h3>📝 Логи</h3>
             <div class="log" id="log">
-                <span class="time">[Запуск]</span> Ожидание инициализации...
+                <span class="time">[Старт]</span> Запуск тестов...
             </div>
             <button class="btn btn-check" onclick="clearLogs()" style="margin-top:8px;">
                 Очистить логи
@@ -258,9 +200,9 @@
     
     <script>
         // ==========================================
-        // КОНФИГУРАЦИЯ
+        // КОНФИГУРАЦИЯ - ВАШ WORKER
         // ==========================================
-        const WORKER_URL = 'https://your-worker.workers.dev'; // ЗАМЕНИТЕ
+        const WORKER_URL = 'https://checklistings.dan-svistunov.workers.dev';
         
         // ==========================================
         // ЛОГГЕР
@@ -269,14 +211,12 @@
         
         function log(message, type = 'info') {
             const time = new Date().toLocaleTimeString();
-            const className = type === 'error' ? 'error-log' : 
-                            type === 'success' ? 'success-log' : 
-                            type === 'warn' ? 'warn-log' : '';
+            const cssClass = type === 'error' ? 'error' : 
+                            type === 'success' ? 'success' : 
+                            type === 'warn' ? 'warn' : '';
             
-            logEl.innerHTML += `\n<span class="time">[${time}]</span> <span class="${className}">${message}</span>`;
+            logEl.innerHTML += `\n<span class="time">[${time}]</span> <span class="${cssClass}">${message}</span>`;
             logEl.scrollTop = logEl.scrollHeight;
-            
-            // Также в консоль
             console.log(`[${time}] ${message}`);
         }
         
@@ -289,11 +229,12 @@
         // ==========================================
         let tg = null;
         let isTgReady = false;
+        let tgUserId = null;
         
         async function initTelegram() {
             log('Поиск Telegram API...');
             
-            // Ждем API
+            // Ждем API (до 5 секунд)
             for (let i = 0; i < 50; i++) {
                 if (window.Telegram?.WebApp) {
                     tg = window.Telegram.WebApp;
@@ -305,6 +246,13 @@
             if (!tg) {
                 log('❌ Telegram API не найден', 'error');
                 updateTgStatus(false, 'API не найден');
+                
+                // Показываем что есть
+                document.getElementById('tg-info').innerHTML = `
+                    <p style="color:red;">❌ Telegram WebApp API не обнаружен</p>
+                    <p>window.Telegram: ${typeof window.Telegram}</p>
+                    <p>Возможно страница открыта не через бота</p>
+                `;
                 return false;
             }
             
@@ -314,30 +262,41 @@
                 tg.ready();
                 tg.expand();
                 
-                const userId = tg.initDataUnsafe?.user?.id || 'неизвестно';
-                const username = tg.initDataUnsafe?.user?.username || 'неизвестно';
+                tgUserId = tg.initDataUnsafe?.user?.id;
+                const username = tg.initDataUnsafe?.user?.username || 'нет username';
+                const firstName = tg.initDataUnsafe?.user?.first_name || 'нет имени';
                 
-                log(`Пользователь: ${username} (ID: ${userId})`);
-                log(`Платформа: ${tg.platform} v${tg.version}`);
-                log(`Метод оплаты: ${typeof tg.openInvoice === 'function' ? '✅ доступен' : '❌ недоступен'}`, 
-                    typeof tg.openInvoice === 'function' ? 'success' : 'error');
+                log(`👤 ${firstName} (@${username})`, 'success');
+                log(`🆔 ID: ${tgUserId}`, 'success');
+                log(`📱 ${tg.platform} v${tg.version}`, 'success');
+                
+                const hasInvoice = typeof tg.openInvoice === 'function';
+                log(`💳 openInvoice: ${hasInvoice ? '✅ ДОСТУПЕН' : '❌ НЕДОСТУПЕН'}`, 
+                    hasInvoice ? 'success' : 'error');
                 
                 isTgReady = true;
-                updateTgStatus(true, `User: ${username}`);
+                updateTgStatus(true, `${firstName}`);
                 
-                // Показываем информацию
+                // Детальная информация
                 document.getElementById('tg-info').innerHTML = `
-                    <p><b>User ID:</b> ${userId}</p>
-                    <p><b>Username:</b> ${username}</p>
-                    <p><b>Platform:</b> ${tg.platform} v${tg.version}</p>
-                    <p><b>Language:</b> ${tg.initDataUnsafe?.user?.language_code || 'неизвестно'}</p>
-                    <p><b>OpenInvoice:</b> ${typeof tg.openInvoice === 'function' ? '✅' : '❌'}</p>
+                    <p><b>ID:</b> ${tgUserId}</p>
+                    <p><b>Имя:</b> ${firstName}</p>
+                    <p><b>Username:</b> @${username}</p>
+                    <p><b>Платформа:</b> ${tg.platform} v${tg.version}</p>
+                    <p><b>Язык:</b> ${tg.initDataUnsafe?.user?.language_code || '?'}</p>
+                    <p><b>Оплата:</b> ${hasInvoice ? '✅' : '❌'}</p>
+                    <p><b>Тема:</b> ${tg.colorScheme}</p>
                 `;
+                
+                // Сырые данные
+                document.getElementById('tg-raw').style.display = 'block';
+                document.getElementById('tg-raw').textContent = 
+                    'initDataUnsafe: ' + JSON.stringify(tg.initDataUnsafe, null, 2);
                 
                 return true;
                 
             } catch (e) {
-                log(`❌ Ошибка инициализации: ${e.message}`, 'error');
+                log(`❌ Ошибка: ${e.message}`, 'error');
                 updateTgStatus(false, e.message);
                 return false;
             }
@@ -345,12 +304,25 @@
         
         function updateTgStatus(ready, message) {
             const badge = document.getElementById('tg-badge');
-            if (ready) {
-                badge.textContent = '✅ Готов';
-                badge.className = 'badge ready';
-            } else {
-                badge.textContent = '❌ Ошибка';
-                badge.className = 'badge not-ready';
+            badge.textContent = ready ? '✅ Готов' : '❌ Ошибка';
+            badge.className = 'badge ' + (ready ? 'ready' : 'not-ready');
+        }
+        
+        // ==========================================
+        // ТЕСТ СВЯЗИ С WORKER
+        // ==========================================
+        async function testWorkerConnection() {
+            log('🔍 Проверка связи с Worker...');
+            
+            try {
+                const response = await fetch(`${WORKER_URL}/test`);
+                const data = await response.json();
+                log(`✅ Worker отвечает: ${JSON.stringify(data)}`, 'success');
+                return true;
+            } catch (e) {
+                log(`❌ Ошибка связи: ${e.message}`, 'error');
+                alert('Worker недоступен: ' + e.message);
+                return false;
             }
         }
         
@@ -358,8 +330,8 @@
         // ПЛАТЕЖИ
         // ==========================================
         
-        async function testPayment(amount, customTitle = null) {
-            log(`🚀 Старт тестового платежа на ${amount} Stars`);
+        async function testPayment(amount, title) {
+            log(`🚀 Платеж: ${amount} Stars - "${title}"`);
             
             if (!isTgReady || !tg) {
                 log('❌ Telegram не готов', 'error');
@@ -369,148 +341,203 @@
             
             if (typeof tg.openInvoice !== 'function') {
                 log('❌ openInvoice недоступен', 'error');
-                alert('Метод оплаты недоступен в этой версии Telegram');
+                alert('Оплата не поддерживается в этой версии Telegram');
                 return;
             }
             
-            const userId = tg.initDataUnsafe?.user?.id;
-            if (!userId) {
+            if (!tgUserId) {
                 log('❌ Нет ID пользователя', 'error');
                 alert('Не удалось получить ID пользователя');
                 return;
             }
             
             // Блокируем кнопки
-            document.querySelectorAll('.btn-buy, .btn-test').forEach(b => b.disabled = true);
-            
-            const title = customTitle || `Тест ${amount} Stars`;
-            const description = `Тестовый платеж на ${amount} звезд`;
+            const allBtns = document.querySelectorAll('.btn-buy, .btn-test');
+            allBtns.forEach(b => b.disabled = true);
             
             try {
-                log(`📡 Запрос инвойса: ${title}`);
+                log('📡 Создание инвойса...');
                 
                 const payload = JSON.stringify({
-                    test: true,
+                    type: 'test',
                     amount: amount,
-                    user_id: userId,
-                    timestamp: Date.now()
+                    user_id: tgUserId,
+                    timestamp: Date.now(),
+                    random: Math.random().toString(36).substring(7)
                 });
                 
                 const response = await fetch(`${WORKER_URL}/api/create-invoice`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        user_id: userId,
+                        user_id: tgUserId,
                         title: title.substring(0, 32),
-                        description: description.substring(0, 255),
+                        description: `Тестовый платеж ${amount} Stars`.substring(0, 255),
                         payload: payload,
-                        prices: [{ label: `${amount} Stars`, amount: amount }]
+                        prices: [{
+                            label: `${amount} Stars`,
+                            amount: amount
+                        }]
                     })
                 });
                 
+                log(`📥 Ответ сервера: ${response.status} ${response.statusText}`);
+                
                 if (!response.ok) {
                     const error = await response.json();
-                    throw new Error(error.details || error.error || 'Ошибка сервера');
+                    log(`❌ Ошибка: ${JSON.stringify(error)}`, 'error');
+                    throw new Error(error.details || error.error || `HTTP ${response.status}`);
                 }
                 
                 const data = await response.json();
-                
-                if (!data.invoice_url) {
-                    throw new Error('Нет invoice_url в ответе');
-                }
-                
                 log(`✅ Инвойс создан`, 'success');
-                log(`🔗 URL: ${data.invoice_url.substring(0, 50)}...`);
+                log(`🔗 URL: ${data.invoice_url?.substring(0, 80)}...`);
                 
                 // Открываем оплату
                 log('📱 Открытие окна оплаты...');
                 
                 tg.openInvoice(data.invoice_url, async (status) => {
-                    log(`💳 Статус: ${status}`, status === 'paid' ? 'success' : 'warn');
+                    log(`💳 Статус: ${status.toUpperCase()}`, 
+                        status === 'paid' ? 'success' : 
+                        status === 'cancelled' ? 'warn' : 'error');
                     
                     if (status === 'paid') {
-                        // Сохраняем в localStorage
-                        savePayment('test_' + amount, amount, Date.now());
-                        
+                        // Сохраняем
+                        savePayment(`test_${amount}_${Date.now()}`, amount);
                         log('✅ Платеж успешен!', 'success');
                         updatePaymentHistory();
                         
-                        // Проверяем на сервере
-                        log('🔍 Проверка платежа на сервере...');
-                        await checkPayment(userId, 'test_' + amount);
+                        // Ждем и проверяем
+                        log('⏳ Ожидание 2 сек...');
+                        await new Promise(r => setTimeout(r, 2000));
+                        
+                        log('🔍 Проверка на сервере...');
+                        try {
+                            const checkResp = await fetch(`${WORKER_URL}/api/verify-payment`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    user_id: tgUserId,
+                                    checklist_id: `test_${amount}_${Date.now()}`
+                                })
+                            });
+                            
+                            if (checkResp.ok) {
+                                const checkData = await checkResp.json();
+                                log(`🔍 Результат: ${checkData.paid ? 'ОПЛАЧЕН' : 'НЕ ОПЛАЧЕН'}`, 
+                                    checkData.paid ? 'success' : 'warn');
+                            }
+                        } catch (e) {
+                            log(`⚠️ Ошибка проверки: ${e.message}`, 'warn');
+                        }
                         
                     } else if (status === 'failed') {
-                        log('❌ Платеж не прошел', 'error');
+                        log('❌ Платеж отклонен', 'error');
                     } else if (status === 'cancelled') {
-                        log('🚫 Платеж отменен', 'warn');
+                        log('🚫 Отменено пользователем', 'warn');
                     }
                     
-                    // Разблокируем кнопки
-                    document.querySelectorAll('.btn-buy, .btn-test').forEach(b => b.disabled = false);
+                    // Разблокируем
+                    allBtns.forEach(b => b.disabled = false);
                 });
                 
             } catch (error) {
                 log(`❌ Ошибка: ${error.message}`, 'error');
                 alert('Ошибка: ' + error.message);
-                document.querySelectorAll('.btn-buy, .btn-test').forEach(b => b.disabled = false);
+                allBtns.forEach(b => b.disabled = false);
             }
         }
         
-        // Свой платеж
         function testPaymentCustom() {
-            const amount = prompt('Введите сумму в Stars (1-10000):', '100');
+            const amount = prompt('Сумма в Stars (1-10000):', '100');
             if (!amount) return;
             
-            const numAmount = parseInt(amount);
-            if (isNaN(numAmount) || numAmount < 1 || numAmount > 10000) {
+            const num = parseInt(amount);
+            if (isNaN(num) || num < 1 || num > 10000) {
                 alert('Введите число от 1 до 10000');
                 return;
             }
             
-            const title = prompt('Название (опционально):', `Тест ${numAmount} Stars`);
-            testPayment(numAmount, title);
+            const title = prompt('Название:', `Тест ${num} Stars`) || `Тест ${num} Stars`;
+            testPayment(num, title);
         }
         
-        async function checkPayment(userId, checklistId) {
-            try {
-                const response = await fetch(`${WORKER_URL}/api/verify-payment`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user_id: userId,
-                        checklist_id: checklistId
-                    })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    log(`Результат проверки: ${data.paid ? '✅ Оплачен' : '❌ Не оплачен'}`, 
-                        data.paid ? 'success' : 'warn');
-                }
-            } catch (e) {
-                log(`Ошибка проверки: ${e.message}`, 'error');
-            }
-        }
+        // ==========================================
+        // ПРОВЕРКИ
+        // ==========================================
         
         async function checkAllPayments() {
-            if (!isTgReady) {
-                alert('Telegram не готов');
+            if (!tgUserId) {
+                alert('Нет ID пользователя');
                 return;
             }
             
-            const userId = tg.initDataUnsafe?.user?.id;
-            log('🔍 Проверка всех платежей...');
+            log('🔍 Запрос всех покупок...');
             
             try {
-                const response = await fetch(`${WORKER_URL}/api/get-purchases?user_id=${userId}`);
+                const response = await fetch(`${WORKER_URL}/api/get-purchases?user_id=${tgUserId}`);
                 
                 if (response.ok) {
                     const data = await response.json();
-                    log(`Найдено покупок: ${data.purchases?.length || 0}`, 'success');
-                    console.log('Purchases:', data);
+                    log(`📦 Получено: ${data.purchases?.length || 0} покупок`, 'success');
+                    
+                    if (data.purchases?.length > 0) {
+                        data.purchases.forEach((p, i) => {
+                            log(`  ${i+1}. ${p.checklist_id} - ${p.amount} Stars`, 'info');
+                        });
+                    }
+                    
+                    alert(`Найдено ${data.purchases?.length || 0} покупок`);
+                } else {
+                    log(`❌ Ошибка HTTP ${response.status}`, 'error');
                 }
             } catch (e) {
-                log(`Ошибка: ${e.message}`, 'error');
+                log(`❌ Ошибка: ${e.message}`, 'error');
+            }
+        }
+        
+        async function restorePurchases() {
+            if (!tgUserId) {
+                alert('Нет ID пользователя');
+                return;
+            }
+            
+            log('🔄 Восстановление покупок...');
+            
+            try {
+                const response = await fetch(`${WORKER_URL}/api/get-purchases?user_id=${tgUserId}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.purchases?.length > 0) {
+                        const existing = getStoredPayments();
+                        let restored = 0;
+                        
+                        data.purchases.forEach(p => {
+                            if (!existing.find(e => e.checklistId === p.checklist_id)) {
+                                existing.push({
+                                    id: p.checklist_id,
+                                    amount: p.amount || '?',
+                                    timestamp: p.payment_date || Date.now(),
+                                    date: new Date(p.payment_date || Date.now()).toLocaleString()
+                                });
+                                restored++;
+                            }
+                        });
+                        
+                        localStorage.setItem('testPayments', JSON.stringify(existing));
+                        updatePaymentHistory();
+                        
+                        log(`✅ Восстановлено: ${restored}`, 'success');
+                        alert(`Восстановлено ${restored} покупок`);
+                    } else {
+                        log('Нет покупок для восстановления', 'warn');
+                        alert('Нет сохраненных покупок');
+                    }
+                }
+            } catch (e) {
+                log(`❌ Ошибка: ${e.message}`, 'error');
             }
         }
         
@@ -518,85 +545,50 @@
         // ХРАНИЛИЩЕ
         // ==========================================
         
-        function savePayment(id, amount, timestamp) {
-            const payments = JSON.parse(localStorage.getItem('testPayments') || '[]');
-            payments.push({ id, amount, timestamp, date: new Date(timestamp).toLocaleString() });
-            localStorage.setItem('testPayments', JSON.stringify(payments));
-            log(`💾 Сохранено в localStorage: ${id}`, 'success');
+        function getStoredPayments() {
+            try {
+                return JSON.parse(localStorage.getItem('testPayments') || '[]');
+            } catch {
+                return [];
+            }
         }
         
-        function getPayments() {
-            return JSON.parse(localStorage.getItem('testPayments') || '[]');
+        function savePayment(id, amount) {
+            const payments = getStoredPayments();
+            payments.push({
+                id,
+                amount,
+                timestamp: Date.now(),
+                date: new Date().toLocaleString()
+            });
+            localStorage.setItem('testPayments', JSON.stringify(payments));
+            log(`💾 Сохранено: ${id}`, 'success');
         }
         
         function updatePaymentHistory() {
-            const payments = getPayments();
-            const historyEl = document.getElementById('payment-history');
+            const payments = getStoredPayments();
+            const el = document.getElementById('payment-history');
             
             if (payments.length === 0) {
-                historyEl.innerHTML = 'Нет платежей';
+                el.innerHTML = '<p style="color:#999;">Нет платежей</p>';
                 return;
             }
             
-            historyEl.innerHTML = payments.map((p, i) => `
+            el.innerHTML = payments.map((p, i) => `
                 <div style="padding:8px;margin:4px 0;background:#f9f9f9;border-radius:8px;">
-                    <b>#${i + 1}</b> ${p.id} - 
+                    <b>#${i + 1}</b> 
                     <span style="color:#ff9500;">⭐ ${p.amount}</span>
-                    <br><small>${p.date}</small>
+                    <br><small style="color:#999;">${p.date}</small>
+                    <br><small style="color:#999;">ID: ${p.id.substring(0, 30)}...</small>
                 </div>
             `).join('');
         }
         
-        async function restorePurchases() {
-            log('🔄 Восстановление покупок...');
-            
-            if (!isTgReady) {
-                alert('Telegram не готов');
-                return;
-            }
-            
-            const userId = tg.initDataUnsafe?.user?.id;
-            
-            try {
-                const response = await fetch(`${WORKER_URL}/api/get-purchases?user_id=${userId}`);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.purchases?.length > 0) {
-                        log(`✅ Восстановлено ${data.purchases.length} покупок`, 'success');
-                        
-                        // Сохраняем в localStorage
-                        const existing = getPayments();
-                        data.purchases.forEach(p => {
-                            if (!existing.find(e => e.id === p.checklist_id)) {
-                                existing.push({
-                                    id: p.checklist_id,
-                                    amount: p.amount || '?',
-                                    timestamp: p.payment_date,
-                                    date: new Date(p.payment_date).toLocaleString()
-                                });
-                            }
-                        });
-                        localStorage.setItem('testPayments', JSON.stringify(existing));
-                        updatePaymentHistory();
-                        
-                        alert(`Восстановлено ${data.purchases.length} покупок`);
-                    } else {
-                        log('Нет покупок для восстановления', 'warn');
-                        alert('Нет сохраненных покупок');
-                    }
-                }
-            } catch (e) {
-                log(`Ошибка: ${e.message}`, 'error');
-            }
-        }
-        
         function clearStorage() {
-            if (confirm('Очистить все данные о платежах?')) {
+            if (confirm('Очистить все данные?')) {
                 localStorage.removeItem('testPayments');
                 updatePaymentHistory();
-                log('🗑 localStorage очищен', 'warn');
+                log('🗑 Данные очищены', 'warn');
             }
         }
         
@@ -605,20 +597,25 @@
         // ==========================================
         
         async function start() {
-            log('🚀 Запуск тестовой страницы');
+            log('🚀 Запуск тестов');
+            log(`📡 Worker: ${WORKER_URL}`);
             
+            // Проверяем Worker
+            await testWorkerConnection();
+            
+            // Инициализируем Telegram
             const ready = await initTelegram();
             
             if (ready) {
-                log('✅ Система готова к тестированию', 'success');
+                log('✅ Всё готово к тестированию!', 'success');
             } else {
-                log('⚠️ Работаем в режиме браузера (без Telegram)', 'warn');
+                log('⚠️ Telegram API не доступен', 'warn');
+                log('Откройте страницу через бота Telegram', 'warn');
             }
             
             updatePaymentHistory();
         }
         
-        // Запускаем
         start();
     </script>
 </body>
