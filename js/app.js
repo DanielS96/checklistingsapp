@@ -129,7 +129,9 @@ function renderList() {
         <div class="card" onclick="${locked ? `window.showPay('${c.id}', '${c.title.replace(/'/g, "\\'")}')` : `openChecklist('${c.id}')`}">
           <div class="card-row">
             <div>
-              <div style="font-weight:700;font-size:16px;">${c.title} ${locked ? '🔒' : ''}</div>
+              <div style="font-weight:700;font-size:16px;">
+                ${locked ? '🔒 ' : ''}${c.title}
+              </div>
               ${c.subtitle ? `<div class="checklist-subtitle">${c.subtitle}</div>` : ''}
               ${locked ? `<div class="price-tag">⭐ ${price}</div>` : ''}
             </div>
