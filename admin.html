@@ -336,49 +336,49 @@
             `;
         }
         
-        function renderRanking() {
-            const checklists = (allData.checklists || [])
-                .sort((a, b) => b.sales - a.sales);
-            
-            if (checklists.length === 0) {
-                document.getElementById('ranking').innerHTML = '<div class="empty">Нет продаж</div>';
-                return;
-            }
-            
-            const maxSales = checklists[0].sales;
-            
-            document.getElementById('ranking').innerHTML = checklists.map((cl, i) => {
-                const position = i + 1;
-                const percent = Math.round((cl.sales / maxSales) * 100);
-                
-                let posClass = 'position-other';
-                let medal = '';
-                if (position === 1) { posClass = 'position-1'; medal = '🥇'; }
-                else if (position === 2) { posClass = 'position-2'; medal = '🥈'; }
-                else if (position === 3) { posClass = 'position-3'; medal = '🥉'; }
-                
-                return `
-                    <div class="ranking-item">
-                        <div class="ranking-position ${posClass}">
-                            ${position <= 3 ? medal : position}
+       function renderRanking() {
+    const ranking = (allData.ranking || [])
+        .sort((a, b) => b.completions - a.completions);
+    
+    if (ranking.length === 0) {
+        document.getElementById('ranking').innerHTML = '<div class="empty">Нет прохождений</div>';
+        return;
+    }
+    
+    const maxCompletions = ranking[0].completions;
+    
+    document.getElementById('ranking').innerHTML = ranking.map((cl, i) => {
+        const position = i + 1;
+        const percent = Math.round((cl.completions / maxCompletions) * 100);
+        
+        let posClass = 'position-other';
+        let medal = '';
+        if (position === 1) { posClass = 'position-1'; medal = '🥇'; }
+        else if (position === 2) { posClass = 'position-2'; medal = '🥈'; }
+        else if (position === 3) { posClass = 'position-3'; medal = '🥉'; }
+        
+        return `
+            <div class="ranking-item">
+                <div class="ranking-position ${posClass}">
+                    ${position <= 3 ? medal : position}
+                </div>
+                <div class="ranking-info">
+                    <div class="ranking-title">${cl.title || cl.checklist_id}</div>
+                    <div class="ranking-bar-wrapper">
+                        <div class="ranking-bar">
+                            <div class="ranking-fill" style="width:${percent}%"></div>
                         </div>
-                        <div class="ranking-info">
-                            <div class="ranking-title">${cl.title || cl.checklist_id}</div>
-                            <div class="ranking-bar-wrapper">
-                                <div class="ranking-bar">
-                                    <div class="ranking-fill" style="width:${percent}%"></div>
-                                </div>
-                                <span style="font-size:11px;color:#999;">${percent}%</span>
-                            </div>
-                        </div>
-                        <div class="ranking-stats">
-                            <div class="ranking-sales">${cl.sales} шт.</div>
-                            <div class="ranking-revenue">${cl.revenue || 0} ⭐</div>
-                        </div>
+                        <span style="font-size:11px;color:#999;">${percent}%</span>
                     </div>
-                `;
-            }).join('');
-        }
+                </div>
+                <div class="ranking-stats">
+                    <div class="ranking-sales">${cl.completions} раз</div>
+                    <div class="ranking-revenue">${cl.revenue || 0} ⭐</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
         
         function renderSalesByDay() {
             const byDay = allData.sales_by_day || [];
