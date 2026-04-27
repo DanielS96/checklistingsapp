@@ -1,45 +1,54 @@
 // Telegram Stars Payments Module
 
 const WORKER_URL = 'https://checklistings.dan-svistunov.workers.dev'
-const CHECKLIST_PRICE = 1 // Цена в звездах (поменяете позже)
+const CHECKLIST_PRICE = 1
 
-// Telegram WebApp
+// ===== TELEGRAM INIT =====
 let tg = null
 let isReady = false
 let userId = null
+let initPromise = null
 
-// Инициализация
-async function init() {
-  for (let i = 0; i < 50; i++) {
-    if (window.Telegram?.WebApp) {
-      tg = window.Telegram.WebApp
-      break
+// Инициализация с промисом, чтобы можно было await
+function initTelegram() {
+  if (initPromise) return initPromise
+
+  initPromise = new Promise(async (resolve) => {
+    // Ждем появления API
+    for (let i = 0; i < 50; i++) {
+      if (window.Telegram?.WebApp) {
+        tg = window.Telegram.WebApp
+        break
+      }
+      await new Promise(r => setTimeout(r, 100))
     }
-    await new Promise(r => setTimeout(r, 100))
-  }
 
-  if (!tg) {
-    console.log('Не в Telegram окружении')
-    return false
-  }
+    if (!tg) {
+      console.log('Не в Telegram окружении')
+      resolve(false)
+      return
+    }
 
-  try {
-    tg.ready()
-    tg.expand()
-    userId = tg.initDataUnsafe?.user?.id
-    isReady = true
-    console.log('✅ Telegram WebApp ready, userId:', userId)
-    return true
-  } catch (e) {
-    console.error('Ошибка инициализации Telegram:', e)
-    return false
-  }
+    try {
+      tg.ready()
+      tg.expand()
+      userId = tg.initDataUnsafe?.user?.id
+      isReady = true
+      console.log('✅ Telegram ready, userId:', userId)
+      resolve(true)
+    } catch (e) {
+      console.error('Ошибка инициализации:', e)
+      resolve(false)
+    }
+  })
+
+  return initPromise
 }
 
-// Запускаем инициализацию
-init()
+// Сразу запускаем
+initTelegram()
 
-// Хранилище оплат
+// ===== ХРАНИЛИЩЕ =====
 function getPaid() {
   try { return JSON.parse(localStorage.getItem('paidChecklists') || '{}') }
   catch { return {} }
@@ -55,7 +64,6 @@ export function isPaid(id) {
   return getPaid()[id] === true
 }
 
-// Проверка - нужно ли платить
 export function needsPayment(checklist, category) {
   if (!checklist) return false
   if (isPaid(checklist.id)) return false
@@ -63,7 +71,7 @@ export function needsPayment(checklist, category) {
   return true
 }
 
-// Создание инвойса
+// ===== ИНВОЙС =====
 async function createInvoice(title, checklistId) {
   const payload = JSON.stringify({
     checklist_id: checklistId,
@@ -104,14 +112,14 @@ async function createInvoice(title, checklistId) {
   }
 }
 
-// Открытие оплаты
+// ===== ОТКРЫТИЕ ОПЛАТЫ =====
 function openInvoice(url, retries = 3) {
   return new Promise((resolve) => {
     let attempts = 0
 
     function tryOpen() {
       attempts++
-      
+
       tg.openInvoice(url, (status) => {
         if (status === 'paid') {
           resolve({ success: true })
@@ -131,15 +139,18 @@ function openInvoice(url, retries = 3) {
   })
 }
 
-// Главная функция оплаты
+// ===== ГЛАВНАЯ ФУНКЦИЯ (ждет инициализацию) =====
 export async function payForChecklist(checklistId, title) {
-  if (!isReady || !tg) {
+  // Ждем инициализацию Telegram
+  const ready = await initTelegram()
+
+  if (!ready || !tg) {
     alert('Оплата доступна только в Telegram\nОткройте приложение через бота')
     return false
   }
 
   if (typeof tg.openInvoice !== 'function') {
-    alert('Оплата не поддерживается в этой версии Telegram\nОбновите приложение')
+    alert('Оплата не поддерживается\nОбновите Telegram')
     return false
   }
 
@@ -169,9 +180,8 @@ export async function payForChecklist(checklistId, title) {
   }
 }
 
-// Модальное окно оплаты
+// ===== МОДАЛКА =====
 export function showPaymentModal(checklistId, title, onSuccess) {
-  // Удаляем старые модалки
   const existing = document.querySelector('.modal')
   if (existing) existing.remove()
 
@@ -210,7 +220,7 @@ export function showPaymentModal(checklistId, title, onSuccess) {
     this.textContent = '⏳'
 
     const success = await payForChecklist(checklistId, title)
-    
+
     if (success) {
       modal.remove()
       if (onSuccess) onSuccess()
