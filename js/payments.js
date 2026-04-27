@@ -9,17 +9,22 @@ let userId = null;
 async function waitForTelegram() {
   console.log('⏳ Waiting for Telegram...');
   
+  // Проверяем сразу
+  console.log('window.Telegram:', window.Telegram);
+  console.log('window.Telegram?.WebApp:', window.Telegram?.WebApp);
+  
   for (let i = 0; i < 50; i++) {
     if (window.Telegram && window.Telegram.WebApp) {
       tg = window.Telegram.WebApp;
-      console.log('✅ Telegram found');
+      console.log('✅ Telegram found at attempt', i);
       break;
     }
     await new Promise(r => setTimeout(r, 100));
   }
 
   if (!tg) {
-    console.log('❌ Telegram not found');
+    console.log('❌ Telegram not found after 50 attempts');
+    console.log('Final check - window.Telegram:', !!window.Telegram);
     return false;
   }
 
@@ -27,10 +32,13 @@ async function waitForTelegram() {
     tg.ready();
     tg.expand();
     userId = tg.initDataUnsafe?.user?.id;
-    console.log('✅ Telegram ready, userId:', userId);
+    console.log('✅ Telegram ready');
+    console.log('userId:', userId);
+    console.log('platform:', tg.platform);
+    console.log('openInvoice exists:', typeof tg.openInvoice);
     return true;
   } catch (e) {
-    console.error('Error:', e);
+    console.error('Error initializing:', e);
     return false;
   }
 }
@@ -94,7 +102,12 @@ function openInvoice(url, retries = 3) {
     let attempts = 0;
     function tryOpen() {
       attempts++;
+      console.log(`Opening invoice attempt ${attempts}/${retries}`);
+      console.log('tg exists:', !!tg);
+      console.log('tg.openInvoice exists:', typeof tg?.openInvoice);
+      
       tg.openInvoice(url, (status) => {
+        console.log('Payment status:', status);
         if (status === 'paid') {
           resolve({ success: true });
         } else if (status === 'failed') {
@@ -110,15 +123,40 @@ function openInvoice(url, retries = 3) {
 }
 
 export async function payForChecklist(checklistId, title) {
+  console.log('=== payForChecklist called ===');
+  console.log('checklistId:', checklistId);
+  console.log('title:', title);
+  
   const ready = await readyPromise;
+  console.log('ready:', ready);
+  console.log('tg:', !!tg);
+  console.log('userId:', userId);
+  console.log('tg?.openInvoice:', typeof tg?.openInvoice);
+
   if (!ready || !tg) {
-    alert('Оплата доступна только в Telegram\nОткройте приложение через бота');
+    const info = `Debug info:
+ready: ${ready}
+tg exists: ${!!tg}
+window.Telegram exists: ${!!window.Telegram}
+window.Telegram?.WebApp exists: ${!!window.Telegram?.WebApp}
+platform: ${tg?.platform || 'N/A'}
+userId: ${userId || 'N/A'}`;
+    
+    console.error(info);
+    alert('Оплата доступна только в Telegram\nОткройте приложение через бота\n\n' + info);
     return false;
   }
+
+  if (typeof tg.openInvoice !== 'function') {
+    alert('Метод оплаты недоступен\nОбновите Telegram');
+    return false;
+  }
+
   if (!userId) {
     alert('Не удалось идентифицировать пользователя');
     return false;
   }
+
   try {
     const invoiceUrl = await createInvoice(title, checklistId);
     const result = await openInvoice(invoiceUrl);
