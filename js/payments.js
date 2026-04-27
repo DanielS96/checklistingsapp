@@ -61,8 +61,8 @@ export function needsPayment(checklist, category) {
   return true;
 }
 
-// Создание инвойса с повторными попытками
-async function createInvoice(title, checklistId, retries = 2) {
+// Создание инвойса
+async function createInvoice(title, checklistId) {
   const payload = JSON.stringify({
     checklist_id: checklistId,
     user_id: userId,
@@ -70,82 +70,48 @@ async function createInvoice(title, checklistId, retries = 2) {
     random: Math.random().toString(36).substring(7)
   });
 
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      console.log(`📡 Создание инвойса (попытка ${attempt}/${retries})`);
-      
-      const response = await fetch(`${WORKER_URL}/api/create-invoice`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          title: title.substring(0, 32),
-          description: `Доступ к чек-листу "${title}"`.substring(0, 255),
-          payload: payload,
-          prices: [{ label: 'Чек-лист', amount: CHECKLIST_PRICE }]
-        })
-      });
+  console.log('📡 Создание инвойса...');
+  
+  const response = await fetch(`${WORKER_URL}/api/create-invoice`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      title: title.substring(0, 32),
+      description: `Доступ к чек-листу "${title}"`.substring(0, 255),
+      payload: payload,
+      prices: [{ label: 'Чек-лист', amount: CHECKLIST_PRICE }]
+    })
+  });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.details || 'Ошибка сервера');
-      }
-
-      const data = await response.json();
-      if (!data.invoice_url) throw new Error('Нет ссылки на оплату');
-      
-      console.log('✅ Инвойс создан');
-      return data.invoice_url;
-
-    } catch (e) {
-      console.error(`Попытка ${attempt} не удалась:`, e);
-      if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 1000));
-      } else {
-        throw e;
-      }
-    }
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.details || 'Ошибка сервера');
   }
+
+  const data = await response.json();
+  if (!data.invoice_url) throw new Error('Нет ссылки на оплату');
+  
+  console.log('✅ Инвойс создан');
+  return data.invoice_url;
 }
 
-// Открытие оплаты с защитой от Load failed
-function openInvoice(url, retries = 3) {
+// Открытие оплаты
+function openInvoice(url) {
   return new Promise((resolve) => {
-    let attempts = 0;
+    console.log('📱 Открытие оплаты...');
     
-    function tryOpen() {
-      attempts++;
-      console.log(`📱 Открытие оплаты (попытка ${attempts}/${retries})`);
+    tg.openInvoice(url, (status) => {
+      console.log('💳 Статус:', status);
       
-      try {
-        tg.openInvoice(url, (status) => {
-          console.log(`💳 Статус: ${status}`);
-          
-          if (status === 'paid') {
-            resolve({ success: true });
-          } else if (status === 'failed') {
-            if (attempts < retries) {
-              console.log(`🔄 Load failed - пробуем еще раз через 1 сек...`);
-              setTimeout(tryOpen, 1000);
-            } else {
-              console.log('❌ Исчерпаны попытки');
-              resolve({ success: false, error: 'Не удалось открыть оплату после нескольких попыток' });
-            }
-          } else {
-            resolve({ success: false, status });
-          }
-        });
-      } catch (e) {
-        console.error('Ошибка openInvoice:', e);
-        if (attempts < retries) {
-          setTimeout(tryOpen, 1000);
-        } else {
-          resolve({ success: false, error: e.message });
-        }
+      if (status === 'paid') {
+        resolve({ success: true });
+      } else if (status === 'failed') {
+        resolve({ success: false, error: 'load_failed' });
+      } else {
+        resolve({ success: false, status });
       }
-    }
-    
-    tryOpen();
+    });
   });
 }
 
@@ -160,34 +126,50 @@ export async function payForChecklist(checklistId, title) {
     return false;
   }
 
-  if (typeof tg.openInvoice !== 'function') {
-    alert('Оплата не поддерживается\nОбновите Telegram');
-    return false;
-  }
-
   if (!userId) {
     alert('Не удалось идентифицировать пользователя');
     return false;
   }
 
   try {
+    // Создаем инвойс
     const invoiceUrl = await createInvoice(title, checklistId);
-    const result = await openInvoice(invoiceUrl, 3);
+    
+    // Даем Telegram время подготовиться
+    await new Promise(r => setTimeout(r, 300));
+    
+    // Открываем оплату
+    let result = await openInvoice(invoiceUrl);
+    
+    // Если Load failed - создаем новый инвойс и пробуем еще раз
+    if (result.error === 'load_failed') {
+      console.log('🔄 Load failed, создаем новый инвойс...');
+      
+      const newInvoiceUrl = await createInvoice(title, checklistId);
+      await new Promise(r => setTimeout(r, 500));
+      result = await openInvoice(newInvoiceUrl);
+      
+      // Если опять fail - последняя попытка
+      if (result.error === 'load_failed') {
+        console.log('🔄 Вторая попытка...');
+        const lastInvoiceUrl = await createInvoice(title, checklistId);
+        await new Promise(r => setTimeout(r, 500));
+        result = await openInvoice(lastInvoiceUrl);
+      }
+    }
 
     if (result.success) {
       setPaid(checklistId);
       return true;
-    } else if (result.error) {
-      alert(result.error + '\n\nПопробуйте еще раз или проверьте соединение с интернетом');
-      return false;
-    } else if (result.status === 'cancelled') {
-      console.log('Оплата отменена');
+    } else if (result.error === 'load_failed') {
+      alert('Не удалось открыть оплату.\n\nПопробуйте:\n1. Проверить интернет\n2. Перезапустить Telegram\n3. Нажать кнопку еще раз');
       return false;
     }
+    
     return false;
   } catch (e) {
     console.error('Payment error:', e);
-    alert('Ошибка при создании платежа\n\nПопробуйте еще раз');
+    alert('Ошибка: ' + e.message);
     return false;
   }
 }
