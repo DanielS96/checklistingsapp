@@ -108,17 +108,46 @@ function getLevel(percent) {
 }
 
 // INIT
+const WORKER_URL = 'https://checklistings.dan-svistunov.workers.dev';
+
 async function init() {
   try {
-    if (tg && shouldShowSubscribe()) {
-      showSubscriptionModal(async () => {
-        state.categories = await loadCategories();
-        render();
-      });
-    } else {
-      state.categories = await loadCategories();
-      render();
+    // Трекинг пользователя
+    if (window.Telegram && window.Telegram.WebApp) {
+      const tg = window.Telegram.WebApp;
+      const user = tg.initDataUnsafe?.user;
+      
+      if (user && user.id) {
+        // Отправляем данные пользователя
+        fetch(`${WORKER_URL}/api/track-user`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user.id,
+            username: user.username || '',
+            first_name: user.first_name || ''
+          })
+        }).catch(() => {});
+
+        // Отправляем событие открытия приложения
+        fetch(`${WORKER_URL}/api/track-event`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user.id,
+            event: 'app_open',
+            data: {
+              platform: tg.platform,
+              version: tg.version
+            }
+          })
+        }).catch(() => {});
+      }
     }
+
+    // Загружаем приложение как обычно
+    state.categories = await loadCategories();
+    render();
   } catch (e) {
     console.error('Init error:', e);
     app.innerHTML = '<p style="text-align:center;padding:40px;">Ошибка загрузки</p>';
