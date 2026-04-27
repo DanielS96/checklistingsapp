@@ -86,55 +86,42 @@ async function createInvoice(title, checklistId) {
 
   const data = await response.json();
   if (!data.invoice_url) throw new Error('Нет ссылки на оплату');
-  
   return data.invoice_url;
 }
 
 function openInvoice(url, retries = 3) {
   return new Promise((resolve) => {
     let attempts = 0;
-
     function tryOpen() {
       attempts++;
-      
       tg.openInvoice(url, (status) => {
-        console.log('Payment status:', status);
-        
         if (status === 'paid') {
           resolve({ success: true });
         } else if (status === 'failed') {
-          if (attempts < retries) {
-            setTimeout(tryOpen, 1000);
-          } else {
-            resolve({ success: false, error: 'Не удалось открыть оплату' });
-          }
+          if (attempts < retries) setTimeout(tryOpen, 1000);
+          else resolve({ success: false, error: 'Не удалось открыть оплату' });
         } else {
           resolve({ success: false, status });
         }
       });
     }
-
     tryOpen();
   });
 }
 
 export async function payForChecklist(checklistId, title) {
   const ready = await readyPromise;
-
   if (!ready || !tg) {
     alert('Оплата доступна только в Telegram\nОткройте приложение через бота');
     return false;
   }
-
   if (!userId) {
     alert('Не удалось идентифицировать пользователя');
     return false;
   }
-
   try {
     const invoiceUrl = await createInvoice(title, checklistId);
     const result = await openInvoice(invoiceUrl);
-
     if (result.success) {
       setPaid(checklistId);
       return true;
@@ -170,7 +157,6 @@ export function showPaymentModal(checklistId, title, onSuccess) {
   `;
 
   document.body.appendChild(modal);
-
   document.getElementById('modal-cancel').onclick = () => modal.remove();
   document.getElementById('modal-pay').onclick = async function() {
     this.disabled = true;
@@ -189,3 +175,5 @@ export function showPaymentModal(checklistId, title, onSuccess) {
 export function getPrice() {
   return CHECKLIST_PRICE;
 }
+
+console.log('💰 Payments module loaded');
