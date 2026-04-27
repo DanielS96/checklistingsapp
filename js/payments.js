@@ -145,7 +145,7 @@ export async function payForChecklist(checklistId, title) {
   const ready = await initTelegram()
 
   if (!ready || !tg) {
-    alert('Оплата доступна только в Telegram\nОткройте приложение через бота')
+    alert('Оплата доступна только в Telegram\nОткройте приложение через бота!!!')
     return false
   }
 
