@@ -226,6 +226,31 @@ window.openChecklist = (id) => {
   setOpened(id);
   state.current = state.checklists.find(x => x.id === id);
   state.screen = 'check';
+  
+  // Трекинг открытия
+  try {
+    if (window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      const user = tg.initDataUnsafe?.user;
+      if (user?.id) {
+        fetch(`${WORKER_URL}/api/track-event`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user.id,
+            event: 'checklist_open',
+            data: {
+              checklist_id: id,
+              checklist_title: state.current?.title || id,
+              category_id: state.category?.id || '',
+              category_title: state.category?.title || ''
+            }
+          })
+        }).catch(() => {});
+      }
+    }
+  } catch (e) {}
+  
   render();
 };
 
