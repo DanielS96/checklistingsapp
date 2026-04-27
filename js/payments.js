@@ -1,6 +1,6 @@
 // Модуль для работы с платежами Telegram Stars
 
-const WORKER_URL = 'https://your-worker.workers.dev'; // ЗАМЕНИТЕ НА ВАШ URL
+const WORKER_URL = 'https://checklistings.dan-svistunov.workers.dev/'; // ЗАМЕНИТЕ НА ВАШ URL
 const CHECKLIST_PRICE = 100; // Цена в звездах
 
 // Правильная инициализация Telegram WebApp
