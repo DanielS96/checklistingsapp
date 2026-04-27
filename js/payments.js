@@ -1,18 +1,65 @@
 // Модуль для работы с платежами Telegram Stars
 
-const WORKER_URL = 'https://checklistings.dan-svistunov.workers.dev/'; // ЗАМЕНИТЕ НА ВАШ URL
+const WORKER_URL = 'https://your-worker.workers.dev'; // ЗАМЕНИТЕ НА ВАШ URL
 const CHECKLIST_PRICE = 100; // Цена в звездах
 
-// Инициализация Telegram WebApp
+// Правильная инициализация Telegram WebApp
 let tg = null;
-try {
-  if (window.Telegram && window.Telegram.WebApp) {
-    tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
+let isTelegramEnvironment = false;
+
+// Функция инициализации Telegram
+function initTelegram() {
+  try {
+    // Проверяем разные способы доступа к Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp) {
+      tg = window.Telegram.WebApp;
+      console.log('Telegram WebApp found via window.Telegram.WebApp');
+    } else if (window.TelegramWebApp) {
+      tg = window.TelegramWebApp;
+      console.log('Telegram WebApp found via window.TelegramWebApp');
+    }
+    
+    if (tg) {
+      // Инициализируем WebApp
+      tg.ready();
+      tg.expand();
+      isTelegramEnvironment = true;
+      console.log('Telegram WebApp initialized successfully');
+      console.log('User ID:', tg.initDataUnsafe?.user?.id);
+      console.log('Platform:', tg.platform);
+      console.log('Version:', tg.version);
+    } else {
+      console.log('Telegram WebApp not found. Running in browser mode.');
+      
+      // Проверяем, не в iframe ли мы (возможно Telegram)
+      if (window.parent && window.parent !== window) {
+        console.log('Running in iframe, might be Telegram Mini App');
+        // Пробуем получить доступ через parent
+        try {
+          if (window.parent.Telegram && window.parent.Telegram.WebApp) {
+            tg = window.parent.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            isTelegramEnvironment = true;
+            console.log('Telegram WebApp found via parent window');
+          }
+        } catch (e) {
+          console.log('Cannot access parent window (cross-origin)');
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error initializing Telegram WebApp:', e);
   }
-} catch (e) {
-  console.log('Не в Telegram окружении');
+}
+
+// Инициализируем при загрузке
+initTelegram();
+
+// Экспортируем функцию для повторной инициализации
+export function reinitTelegram() {
+  initTelegram();
+  return isTelegramEnvironment;
 }
 
 // ===== ХРАНИЛИЩЕ =====
@@ -28,9 +75,7 @@ export const setPaid = (id) => {
   const paid = getPaidChecklists();
   paid[id] = true;
   localStorage.setItem('paidChecklists', JSON.stringify(paid));
-  // Уведомляем другие вкладки
   window.dispatchEvent(new CustomEvent('paymentUpdated', { detail: { checklistId: id } }));
-  // Сохраняем в историю платежей
   addPaymentHistory(id);
 };
 
@@ -38,7 +83,7 @@ export const isPaid = (id) => {
   return getPaidChecklists()[id] === true;
 };
 
-// История платежей для аналитики
+// История платежей
 const addPaymentHistory = (checklistId) => {
   try {
     const history = JSON.parse(localStorage.getItem('paymentHistory') || '[]');
@@ -47,7 +92,6 @@ const addPaymentHistory = (checklistId) => {
       timestamp: Date.now(),
       date: new Date().toISOString()
     });
-    // Храним последние 100 платежей
     if (history.length > 100) {
       history.splice(0, history.length - 100);
     }
@@ -80,6 +124,9 @@ function closeLoadingModal() {
 }
 
 function showErrorModal(message) {
+  const existingModal = document.querySelector('.modal');
+  if (existingModal) existingModal.remove();
+  
   const modal = document.createElement('div');
   modal.className = 'modal';
   modal.id = 'error-modal';
@@ -115,19 +162,23 @@ export function showSuccessNotification(message) {
   document.body.appendChild(notification);
   
   setTimeout(() => {
-    notification.remove();
+    if (notification.parentNode) {
+      notification.remove();
+    }
   }, 2500);
 }
 
 // ===== ПРОВЕРКА ДОСТУПА =====
 export async function verifyChecklistAccess(checklistId) {
-  if (!tg) {
-    // В браузере проверяем только localStorage
+  if (!isTelegramEnvironment) {
     return isPaid(checklistId);
   }
   
-  const userId = tg.initDataUnsafe?.user?.id;
-  if (!userId) return isPaid(checklistId);
+  const userId = tg?.initDataUnsafe?.user?.id;
+  if (!userId) {
+    console.log('No user ID, checking localStorage only');
+    return isPaid(checklistId);
+  }
   
   try {
     const response = await fetch(`${WORKER_URL}/api/verify-payment`, {
@@ -144,7 +195,6 @@ export async function verifyChecklistAccess(checklistId) {
     const data = await response.json();
     
     if (data.paid && !isPaid(checklistId)) {
-      // Синхронизируем с localStorage
       setPaid(checklistId);
     }
     
@@ -157,17 +207,45 @@ export async function verifyChecklistAccess(checklistId) {
 
 // ===== ОПЛАТА =====
 export async function payForChecklist(checklistId, checklistTitle) {
-  if (!tg) {
-    console.log('Тестовый режим: симуляция оплаты');
-    alert('Оплата работает только в Telegram мини-приложении');
-    return false;
+  console.log('payForChecklist called', { checklistId, checklistTitle });
+  console.log('Telegram environment:', isTelegramEnvironment);
+  console.log('tg object:', tg);
+  
+  // Проверяем наличие Telegram WebApp
+  if (!tg || !isTelegramEnvironment) {
+    console.log('Not in Telegram environment');
+    
+    // Пробуем переинициализировать
+    const reinitialized = reinitTelegram();
+    
+    if (!reinitialized) {
+      // Для отладки показываем больше информации
+      const info = {
+        hasWindowTelegram: !!window.Telegram,
+        hasWebApp: !!window.Telegram?.WebApp,
+        hasParent: window.parent !== window,
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      };
+      console.log('Environment info:', info);
+      
+      showErrorModal(
+        'Оплата работает только в Telegram мини-приложении.\n\n' +
+        'Откройте приложение через Telegram бота.'
+      );
+      return false;
+    }
   }
 
   try {
-    const userId = tg.initDataUnsafe?.user?.id;
-    if (!userId) {
-      throw new Error('Не удалось получить ID пользователя');
+    // Проверяем инициализацию
+    if (!tg.initDataUnsafe?.user?.id) {
+      console.log('tg.initDataUnsafe:', tg.initDataUnsafe);
+      throw new Error('Не удалось получить ID пользователя Telegram');
     }
+    
+    const userId = tg.initDataUnsafe.user.id;
+    console.log('User ID:', userId);
 
     showLoadingModal('Создание счета...');
 
@@ -180,6 +258,7 @@ export async function payForChecklist(checklistId, checklistTitle) {
     });
 
     // Создаем инвойс через Worker
+    console.log('Creating invoice...');
     const response = await fetch(`${WORKER_URL}/api/create-invoice`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -203,11 +282,14 @@ export async function payForChecklist(checklistId, checklistTitle) {
     const data = await response.json();
     closeLoadingModal();
     
+    console.log('Invoice created:', data);
+    
     if (!data.success || !data.invoice_url) {
       throw new Error('Неверный ответ сервера');
     }
 
     // Открываем окно оплаты
+    console.log('Opening invoice...');
     return new Promise((resolve) => {
       tg.openInvoice(data.invoice_url, async (status) => {
         console.log('Payment status from Telegram:', status);
@@ -225,6 +307,8 @@ export async function payForChecklist(checklistId, checklistTitle) {
           
           while (!isVerified && retryCount < maxRetries) {
             try {
+              console.log(`Verification attempt ${retryCount + 1}/${maxRetries}`);
+              
               const verifyResponse = await fetch(`${WORKER_URL}/api/verify-payment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -236,6 +320,8 @@ export async function payForChecklist(checklistId, checklistTitle) {
               
               if (verifyResponse.ok) {
                 const verifyData = await verifyResponse.json();
+                console.log('Verification response:', verifyData);
+                
                 if (verifyData.paid) {
                   isVerified = true;
                   break;
@@ -267,7 +353,6 @@ export async function payForChecklist(checklistId, checklistTitle) {
               'Не удалось подтвердить оплату. ' +
               'Пожалуйста, нажмите "Восстановить покупки" через несколько минут.'
             );
-            // Сохраняем в localStorage с пометкой "ожидает верификации"
             setPaid(checklistId);
             resolve(false);
           }
@@ -279,6 +364,7 @@ export async function payForChecklist(checklistId, checklistTitle) {
           console.log('Payment cancelled by user');
           resolve(false);
         } else {
+          console.log('Unknown status:', status);
           resolve(false);
         }
       });
@@ -294,12 +380,12 @@ export async function payForChecklist(checklistId, checklistTitle) {
 
 // ===== ВОССТАНОВЛЕНИЕ ПОКУПОК =====
 export async function restorePurchases() {
-  if (!tg) {
+  if (!isTelegramEnvironment) {
     console.log('Не в Telegram, пропускаем восстановление');
     return { restored: false, count: 0 };
   }
   
-  const userId = tg.initDataUnsafe?.user?.id;
+  const userId = tg?.initDataUnsafe?.user?.id;
   if (!userId) {
     console.log('Не удалось получить ID пользователя');
     return { restored: false, count: 0 };
@@ -325,7 +411,6 @@ export async function restorePurchases() {
         if (!paidChecklists[purchase.checklist_id]) {
           paidChecklists[purchase.checklist_id] = true;
           restoredCount++;
-          console.log('Restored purchase:', purchase.checklist_id);
         }
       });
       
@@ -363,6 +448,7 @@ export async function restorePurchasesUI() {
 
 // ===== ОПРЕДЕЛЕНИЕ ПЛАТНОСТИ =====
 export function isChecklistPaid(checklist, category) {
+  if (!checklist) return false;
   if (checklist.isFree) return false;
   if (category && category.free_checklist === checklist.id) return false;
   if (isPaid(checklist.id)) return false;
@@ -371,6 +457,9 @@ export function isChecklistPaid(checklist, category) {
 
 // ===== МОДАЛЬНОЕ ОКНО ОПЛАТЫ =====
 export function showPaymentModal(checklistId, checklistTitle, onSuccess) {
+  const existingModal = document.querySelector('.modal');
+  if (existingModal) existingModal.remove();
+  
   const modal = document.createElement('div');
   modal.className = 'modal';
   modal.id = 'payment-modal';
@@ -434,9 +523,25 @@ export function getChecklistPrice() {
 }
 
 export function isTelegramWebApp() {
-  return !!tg;
+  return isTelegramEnvironment;
 }
 
-// Добавляем глобальные функции для HTML onclick
+// Экспортируем tg для отладки
+export function getTelegramApp() {
+  return tg;
+}
+
+// Добавляем глобальные функции
 window.showPaymentModal = showPaymentModal;
 window.closePaymentModal = closePaymentModal;
+window.restorePurchasesUI = restorePurchasesUI;
+
+// Выводим информацию об окружении в консоль
+console.log('Payments module loaded');
+console.log('Environment:', {
+  isTelegram: isTelegramEnvironment,
+  hasTg: !!tg,
+  platform: tg?.platform,
+  version: tg?.version,
+  userId: tg?.initDataUnsafe?.user?.id
+});
