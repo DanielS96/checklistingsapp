@@ -247,7 +247,8 @@ window.openChecklist = (id) => {
               checklist_id: id,
               checklist_title: state.current?.title || id,
               category_id: state.category?.id || '',
-              category_title: state.category?.title || ''
+              category_title: state.category?.title || '',
+              category_icon: state.category?.icon || ''
             }
           })
         }).catch(() => {});
