@@ -215,7 +215,11 @@ function renderList() {
       `;
     }).join('')}
   `;
+
+  // Прокрутка вверх страницы
+  window.scrollTo(0, 0);
 }
+
 window.showPay = (id, title) => {
   const checklist = state.checklists.find(c => c.id === id);
   const subtitle = checklist?.subtitle || '';
