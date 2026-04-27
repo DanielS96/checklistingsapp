@@ -136,7 +136,7 @@ function renderList() {
             </div>
             <div style="text-align:right;">
               <div class="status ${s.class}">${s.text}</div>
-              ${locked ? `<div style="font-size:13px;font-weight:600;color:#ff9500;margin-top:4px;">⭐ ${price}</div>` : ''}
+              ${locked ? `<div style="font-size:13px;font-weight:600;color:#ff9500;margin-top:4px;">${price} ⭐</div>` : ''}
             </div>
           </div>
         </div>
