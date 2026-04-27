@@ -1,7 +1,7 @@
 console.log('💰 Payments module loading...');
 
 const WORKER_URL = 'https://checklistings.dan-svistunov.workers.dev';
-const CHECKLIST_PRICE = 100;
+const CHECKLIST_PRICE = 1;
 
 let tg = null;
 let userId = null;
@@ -87,46 +87,6 @@ async function createInvoice(title, checklistId) {
   return data.invoice_url;
 }
 
-// Прогрев ссылки — предзагрузка в невидимом iframe
-async function warmupInvoice(url) {
-  return new Promise((resolve) => {
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
-    iframe.src = url;
-    
-    let resolved = false;
-    
-    const cleanup = () => {
-      if (!resolved) {
-        resolved = true;
-        setTimeout(() => {
-          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-        }, 1000);
-      }
-    };
-    
-    iframe.onload = () => {
-      console.log('✅ Invoice preloaded');
-      cleanup();
-      resolve();
-    };
-    
-    iframe.onerror = () => {
-      console.log('⚠️ Preload warning');
-      cleanup();
-      resolve();
-    };
-    
-    document.body.appendChild(iframe);
-    
-    // Максимум ждем 2 секунды
-    setTimeout(() => {
-      cleanup();
-      resolve();
-    }, 2000);
-  });
-}
-
 function openInvoice(url) {
   return new Promise((resolve) => {
     let resolved = false;
@@ -135,7 +95,7 @@ function openInvoice(url) {
       if (resolved) return;
       resolved = true;
       tg.offEvent('invoiceClosed', handleClose);
-      console.log('✅ Invoice closed - payment successful');
+      console.log('✅ Invoice closed');
       resolve({ success: true });
     };
 
@@ -196,28 +156,28 @@ export async function payForChecklist(checklistId, title) {
     return false;
   }
 
+  // Показываем загрузку
+  const existingModals = document.querySelectorAll('.modal');
+  existingModals.forEach(m => m.remove());
+
   const loadingModal = document.createElement('div');
   loadingModal.className = 'modal';
+  loadingModal.id = 'loading-modal';
   loadingModal.innerHTML = `<div class="modal-content"><div style="font-size:18px;">⏳</div><p>Создаём счёт...</p></div>`;
   document.body.appendChild(loadingModal);
 
-  // Пробуем до 4 раз
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      // Создаем свежий инвойс
       const url = await createInvoice(title, checklistId);
       
-      // Прогреваем ссылку
-      loadingModal.querySelector('p').textContent = 'Подготовка...';
-      await warmupInvoice(url);
-      
       // Убираем загрузку
-      loadingModal.remove();
+      const lm = document.getElementById('loading-modal');
+      if (lm) lm.remove();
       
-      // Небольшая пауза
-      await new Promise(r => setTimeout(r, 200));
+      // Пауза перед открытием
+      await new Promise(r => setTimeout(r, 300));
       
-      console.log(`Opening invoice, attempt ${attempt}`);
+      console.log(`Opening invoice, attempt ${attempt}/3`);
       const result = await openInvoice(url);
       console.log(`Attempt ${attempt} result:`, result);
       
@@ -230,34 +190,43 @@ export async function payForChecklist(checklistId, title) {
         return false;
       }
       
-      if (result.error === 'failed' && attempt < 4) {
-        document.body.appendChild(loadingModal);
-        loadingModal.querySelector('p').textContent = 'Создаём новый счёт...';
-        await new Promise(r => setTimeout(r, 1000));
+      // Load failed — пробуем еще раз
+      if (result.error === 'failed' && attempt < 3) {
+        console.log(`Load failed, попытка ${attempt}/3`);
+        
+        const retryModal = document.createElement('div');
+        retryModal.className = 'modal';
+        retryModal.id = 'loading-modal';
+        retryModal.innerHTML = `<div class="modal-content"><div style="font-size:18px;">⏳</div><p>Создаём новый счёт...</p></div>`;
+        document.body.appendChild(retryModal);
+        
+        await new Promise(r => setTimeout(r, 800));
         continue;
       }
       
-      if (attempt === 4) {
-        console.log('All attempts failed');
-        alert('Не удалось открыть оплату.\n\nПопробуйте:\n1. Проверить интернет\n2. Перезапустить Telegram\n3. Нажать кнопку еще раз');
+      // Исчерпаны попытки
+      if (attempt === 3 && result.error === 'failed') {
+        const lm2 = document.getElementById('loading-modal');
+        if (lm2) lm2.remove();
+        alert('Не удалось открыть оплату.\n\nПопробуйте еще раз.');
       }
       
       return false;
       
     } catch (e) {
       console.error(`Attempt ${attempt} error:`, e);
-      if (attempt === 4) {
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(m => m.remove());
+      if (attempt === 3) {
+        const lm3 = document.getElementById('loading-modal');
+        if (lm3) lm3.remove();
         alert('Ошибка: ' + e.message);
         return false;
       }
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 800));
     }
   }
   
-  const modals = document.querySelectorAll('.modal');
-  modals.forEach(m => m.remove());
+  const lm4 = document.getElementById('loading-modal');
+  if (lm4) lm4.remove();
   return false;
 }
 
@@ -305,15 +274,27 @@ export function showPaymentModal(checklistId, title, subtitle, onSuccess) {
   `;
 
   document.body.appendChild(modal);
-  document.getElementById('modal-cancel').onclick = () => modal.remove();
+
+  let isProcessing = false;
+
+  document.getElementById('modal-cancel').onclick = () => {
+    if (!isProcessing) modal.remove();
+  };
+
   document.getElementById('modal-pay').onclick = async function() {
+    if (isProcessing) return;
+    isProcessing = true;
+    
     this.disabled = true;
     this.textContent = '⏳';
-    modal.remove();
+    
     const ok = await payForChecklist(checklistId, title);
+    
     if (ok) {
+      modal.remove();
       if (onSuccess) onSuccess();
     } else {
+      modal.remove();
       showPaymentModal(checklistId, title, subtitle, onSuccess);
     }
   };
