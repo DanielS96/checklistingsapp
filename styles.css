@@ -327,19 +327,3 @@ h2 {
     background-position: 0% 50%;
   }
 }
-
-
-
-
-/* Переливающийся градиент для прогресс-баров категорий */
-.card.category .progress-fill {
-  background: linear-gradient(90deg, #007aff, #34c759, #5856d6, #007aff);
-  background-size: 300% 100%;
-  animation: progressShine 4s ease infinite;
-}
-
-@keyframes progressShine {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
