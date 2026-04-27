@@ -7,12 +7,9 @@ let tg = null;
 let userId = null;
 
 async function waitForTelegram() {
-  console.log('⏳ Waiting for Telegram...');
-  
   for (let i = 0; i < 50; i++) {
     if (window.Telegram && window.Telegram.WebApp) {
       tg = window.Telegram.WebApp;
-      console.log('✅ Telegram found at attempt', i);
       break;
     }
     await new Promise(r => setTimeout(r, 100));
@@ -67,7 +64,7 @@ async function createInvoice(title, checklistId) {
     random: Math.random().toString(36).substring(7)
   });
 
-  console.log('📡 Создание инвойса...');
+  console.log('📡 Creating invoice...');
   
   const response = await fetch(`${WORKER_URL}/api/create-invoice`, {
     method: 'POST',
@@ -89,44 +86,70 @@ async function createInvoice(title, checklistId) {
   const data = await response.json();
   if (!data.invoice_url) throw new Error('Нет ссылки на оплату');
   
-  console.log('✅ Инвойс создан');
   return data.invoice_url;
 }
 
 function openInvoice(url) {
-  return new Promise((resolve, reject) => {
-    console.log('📱 Открытие оплаты...');
-    
+  return new Promise((resolve) => {
+    let resolved = false;
+
+    const handleClose = (event) => {
+      if (resolved) return;
+      resolved = true;
+      tg.offEvent('invoiceClosed', handleClose);
+      console.log('✅ Invoice closed, payment successful');
+      resolve({ success: true });
+    };
+
+    tg.onEvent('invoiceClosed', handleClose);
+
     try {
       tg.openInvoice(url, (status) => {
-        console.log('💳 Статус callback:', status);
-        
+        console.log('Invoice callback status:', status);
+
         if (status === 'paid') {
-          console.log('✅ Оплата подтверждена Telegram');
-          resolve({ success: true });
+          if (!resolved) {
+            resolved = true;
+            tg.offEvent('invoiceClosed', handleClose);
+            resolve({ success: true });
+          }
         } else if (status === 'failed') {
-          console.log('❌ Оплата не удалась');
-          resolve({ success: false, error: 'failed' });
+          if (!resolved) {
+            resolved = true;
+            tg.offEvent('invoiceClosed', handleClose);
+            resolve({ success: false, error: 'failed' });
+          }
         } else if (status === 'cancelled') {
-          console.log('🚫 Оплата отменена');
-          resolve({ success: false, error: 'cancelled' });
-        } else {
-          console.log('⚠️ Неизвестный статус:', status);
-          resolve({ success: false, error: 'unknown' });
+          if (!resolved) {
+            resolved = true;
+            tg.offEvent('invoiceClosed', handleClose);
+            resolve({ success: false, error: 'cancelled' });
+          }
         }
       });
     } catch (e) {
-      console.error('Ошибка openInvoice:', e);
-      reject(e);
+      console.error('Error opening invoice:', e);
+      if (!resolved) {
+        resolved = true;
+        tg.offEvent('invoiceClosed', handleClose);
+        resolve({ success: false, error: 'exception', message: e.message });
+      }
     }
+
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        tg.offEvent('invoiceClosed', handleClose);
+        console.log('Payment timeout');
+        resolve({ success: false, error: 'timeout' });
+      }
+    }, 120000);
   });
 }
 
 export async function payForChecklist(checklistId, title) {
-  console.log('=== payForChecklist ===');
-  
   const ready = await readyPromise;
-  
+
   if (!ready || !tg) {
     alert('Оплата доступна только в Telegram\nОткройте приложение через бота');
     return false;
@@ -137,74 +160,52 @@ export async function payForChecklist(checklistId, title) {
     return false;
   }
 
-  // Показываем модалку с ожиданием
-  const existingModal = document.querySelector('.modal');
-  if (existingModal) existingModal.remove();
-  
-  const waitModal = document.createElement('div');
-  waitModal.className = 'modal';
-  waitModal.innerHTML = `
-    <div class="modal-content">
-      <div style="font-size:18px;margin-bottom:12px;">⏳</div>
-      <p>Создание платежа...</p>
-    </div>
-  `;
-  document.body.appendChild(waitModal);
+  const loadingModal = document.createElement('div');
+  loadingModal.className = 'modal';
+  loadingModal.innerHTML = `<div class="modal-content"><div style="font-size:18px;">⏳</div><p>Создание платежа...</p></div>`;
+  document.body.appendChild(loadingModal);
 
   try {
     const invoiceUrl = await createInvoice(title, checklistId);
-    
-    // Убираем модалку ожидания
-    waitModal.remove();
-    
-    // Небольшая пауза
+    loadingModal.remove();
     await new Promise(r => setTimeout(r, 300));
-    
-    // Открываем оплату
-    let result = await openInvoice(invoiceUrl);
-    console.log('Результат первой попытки:', result);
-    
-    // Если failed - пробуем еще раз с новым инвойсом
-    if (result.error === 'failed') {
-      console.log('🔄 Первая попытка не удалась, пробуем еще раз...');
-      
-      // Показываем что пробуем еще раз
-      const retryModal = document.createElement('div');
-      retryModal.className = 'modal';
-      retryModal.innerHTML = `
-        <div class="modal-content">
-          <div style="font-size:18px;margin-bottom:12px;">⏳</div>
-          <p>Повторная попытка...</p>
-        </div>
-      `;
-      document.body.appendChild(retryModal);
-      
-      const newInvoiceUrl = await createInvoice(title, checklistId);
-      retryModal.remove();
-      
-      await new Promise(r => setTimeout(r, 500));
-      result = await openInvoice(newInvoiceUrl);
-      console.log('Результат второй попытки:', result);
-    }
+
+    console.log('Opening invoice...');
+    const result = await openInvoice(invoiceUrl);
+    console.log('Result:', result);
 
     if (result.success) {
-      console.log('✅ Платеж успешен, сохраняем...');
       setPaid(checklistId);
+      console.log('✅ Payment successful');
       return true;
     } else if (result.error === 'failed') {
-      alert('Оплата не прошла.\n\nПопробуйте еще раз или проверьте баланс звезд.');
-      return false;
+      const retryModal = document.createElement('div');
+      retryModal.className = 'modal';
+      retryModal.innerHTML = `<div class="modal-content"><div style="font-size:18px;">⏳</div><p>Повторная попытка...</p></div>`;
+      document.body.appendChild(retryModal);
+
+      const newUrl = await createInvoice(title, checklistId);
+      retryModal.remove();
+      await new Promise(r => setTimeout(r, 500));
+
+      const retryResult = await openInvoice(newUrl);
+      if (retryResult.success) {
+        setPaid(checklistId);
+        return true;
+      } else {
+        alert('Оплата не прошла.\n\nПопробуйте еще раз.');
+        return false;
+      }
     } else if (result.error === 'cancelled') {
-      console.log('Оплата отменена пользователем');
+      console.log('Payment cancelled');
+      return false;
+    } else {
+      console.log('Unknown result:', result);
       return false;
     }
-    
-    return false;
   } catch (e) {
-    // Убираем любые модалки
     const modals = document.querySelectorAll('.modal');
     modals.forEach(m => m.remove());
-    
     console.error('Payment error:', e);
     alert('Ошибка: ' + e.message);
     return false;
@@ -231,22 +232,15 @@ export function showPaymentModal(checklistId, title, onSuccess) {
   `;
 
   document.body.appendChild(modal);
-  
   document.getElementById('modal-cancel').onclick = () => modal.remove();
-  
   document.getElementById('modal-pay').onclick = async function() {
     this.disabled = true;
     this.textContent = '⏳';
-    
-    // Закрываем модалку с ценой
     modal.remove();
-    
     const ok = await payForChecklist(checklistId, title);
-    
     if (ok) {
       if (onSuccess) onSuccess();
     } else {
-      // Если не удалось - показываем модалку снова
       showPaymentModal(checklistId, title, onSuccess);
     }
   };
@@ -255,5 +249,3 @@ export function showPaymentModal(checklistId, title, onSuccess) {
 export function getPrice() {
   return CHECKLIST_PRICE;
 }
-
-console.log('💰 Payments module loaded');
