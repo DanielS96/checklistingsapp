@@ -2,6 +2,7 @@ import { loadCategories, loadChecklists } from './api.js';
 import { isPaid, needsPayment, showPaymentModal, getPrice } from './payments.js';
 
 const app = document.getElementById('app');
+const WORKER_URL = 'https://checklistings.dan-svistunov.workers.dev';
 
 let state = {
   screen: 'categories',
@@ -10,72 +11,6 @@ let state = {
   checklists: [],
   current: null
 };
-
-let tg = null;
-try {
-  if (window.Telegram && window.Telegram.WebApp) {
-    tg = window.Telegram.WebApp;
-  }
-} catch (e) {}
-
-const CHANNEL_USERNAME = 'checklistings_channel'; // ЗАМЕНИТЕ НА ВАШ КАНАЛ
-
-// Проверяем, нужно ли показывать модалку
-function shouldShowSubscribe() {
-  const lastShown = localStorage.getItem('subscribeShown');
-  if (!lastShown) return true; // Первый раз — показываем
-  
-  const lastTime = parseInt(lastShown);
-  const weekInMs = 7 * 24 * 60 * 60 * 1000; // Неделя в миллисекундах
-  
-  return (Date.now() - lastTime) > weekInMs;
-}
-
-// Показать окно подписки
-function showSubscriptionModal(callback) {
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.innerHTML = `
-    <div class="modal-content" style="max-width:320px;width:90%;padding:24px 20px;text-align:center;">
-      <div style="font-size:48px;margin-bottom:12px;">📢</div>
-      
-      <h3 style="font-size:20px;font-weight:700;margin:0 0 8px 0;color:#1c1c1e;">
-        Подпишитесь на канал
-      </h3>
-      
-      <p style="font-size:14px;color:#666;margin:0 0 16px 0;line-height:1.5;">
-        Подпишитесь на наш канал, чтобы первыми получать новые чек-листы и обновления!
-      </p>
-      
-      <button class="btn btn-primary" id="subscribe-go" style="width:100%;margin-bottom:8px;font-size:15px;">
-        📢 Подписаться
-      </button>
-      
-      <button class="btn btn-ghost" id="subscribe-skip" style="width:100%;font-size:13px;color:#999;">
-        Пропустить
-      </button>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  document.getElementById('subscribe-go').onclick = () => {
-    if (tg) {
-      tg.openTelegramLink(`https://t.me/${CHANNEL_USERNAME}`);
-    } else {
-      window.open(`https://t.me/${CHANNEL_USERNAME}`, '_blank');
-    }
-    localStorage.setItem('subscribeShown', Date.now());
-    modal.remove();
-    callback();
-  };
-
-  document.getElementById('subscribe-skip').onclick = () => {
-    localStorage.setItem('subscribeShown', Date.now());
-    modal.remove();
-    callback();
-  };
-}
 
 // STORAGE
 const getProgress = () => {
@@ -107,18 +42,13 @@ function getLevel(percent) {
   return 'Мастер';
 }
 
-// INIT
-const WORKER_URL = 'https://checklistings.dan-svistunov.workers.dev';
-
-async function init() {
+async function trackUser() {
   try {
-    // Трекинг пользователя
-    if (window.Telegram && window.Telegram.WebApp) {
+    if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
       const user = tg.initDataUnsafe?.user;
       
-      if (user && user.id) {
-        // Отправляем данные пользователя
+      if (user?.id) {
         fetch(`${WORKER_URL}/api/track-user`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -129,23 +59,45 @@ async function init() {
           })
         }).catch(() => {});
 
-        // Отправляем событие открытия приложения
         fetch(`${WORKER_URL}/api/track-event`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             user_id: user.id,
             event: 'app_open',
-            data: {
-              platform: tg.platform,
-              version: tg.version
-            }
+            data: { platform: tg.platform, version: tg.version }
           })
         }).catch(() => {});
       }
     }
+  } catch (e) {}
+}
 
-    // Загружаем приложение как обычно
+async function trackChecklistComplete(checklistId, checklistTitle) {
+  try {
+    if (window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      const user = tg.initDataUnsafe?.user;
+      
+      if (user?.id) {
+        fetch(`${WORKER_URL}/api/track-progress`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user.id,
+            checklist_id: checklistId,
+            checklist_title: checklistTitle
+          })
+        }).catch(() => {});
+      }
+    }
+  } catch (e) {}
+}
+
+// INIT
+async function init() {
+  try {
+    await trackUser();
     state.categories = await loadCategories();
     render();
   } catch (e) {
@@ -337,7 +289,10 @@ window.checkQuiz = () => {
   const modal = document.createElement('div');
   modal.className = 'modal';
   const ok = score === c.quiz.length;
-  if (ok) setDone(c.id);
+  if (ok) {
+    setDone(c.id);
+    trackChecklistComplete(c.id, c.title);
+  }
 
   modal.innerHTML = ok ? `
     <div class="modal-content">
