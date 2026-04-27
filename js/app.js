@@ -120,9 +120,27 @@ function renderList() {
   const price = getPrice();
   const cat = state.category;
 
+  // Сортируем чек-листы
+  const sorted = [...state.checklists].sort((a, b) => {
+    const statusA = getStatus(a.id);
+    const statusB = getStatus(b.id);
+    const lockedA = needsPayment(a, cat);
+    const lockedB = needsPayment(b, cat);
+    
+    // Приоритеты: progress (0) > new unlocked (1) > new locked (2) > done (3)
+    const getPriority = (status, locked) => {
+      if (status.class === 'progress') return 0;  // Начатые
+      if (status.class === 'new' && !locked) return 1;  // Новые открытые
+      if (status.class === 'new' && locked) return 2;  // Новые закрытые
+      return 3;  // Выполненные
+    };
+    
+    return getPriority(statusA, lockedA) - getPriority(statusB, lockedB);
+  });
+
   app.innerHTML = `
     <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
-    ${state.checklists.map(c => {
+    ${sorted.map(c => {
       const s = getStatus(c.id);
       const locked = needsPayment(c, cat);
       return `
@@ -134,7 +152,7 @@ function renderList() {
             </div>
             <div style="text-align:right;">
               <div class="status ${s.class}">${s.text}</div>
-              ${locked ? `<div style="font-size:14px;font-weight:600;color:#ff9500;margin-top:4px;">${price}⭐</div>` : ''}
+              ${locked ? `<div style="font-size:13px;font-weight:600;color:#ff9500;margin-top:4px;">${price}⭐</div>` : ''}
             </div>
           </div>
         </div>
@@ -142,7 +160,6 @@ function renderList() {
     }).join('')}
   `;
 }
-
 window.showPay = (id, title) => {
   const checklist = state.checklists.find(c => c.id === id);
   const subtitle = checklist?.subtitle || '';
