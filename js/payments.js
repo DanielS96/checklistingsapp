@@ -87,13 +87,7 @@ async function createInvoice(title, checklistId) {
   return data.invoice_url;
 }
 
-async function tryOpenInvoice(title, checklistId) {
-  // Создаем свежий инвойс
-  const url = await createInvoice(title, checklistId);
-  
-  // Минимальная пауза
-  await new Promise(r => setTimeout(r, 200));
-  
+function openInvoice(url) {
   return new Promise((resolve) => {
     let resolved = false;
 
@@ -145,7 +139,7 @@ async function tryOpenInvoice(title, checklistId) {
         tg.offEvent('invoiceClosed', handleClose);
         resolve({ success: false, error: 'timeout' });
       }
-    }, 60000);
+    }, 120000);
   });
 }
 
@@ -162,57 +156,67 @@ export async function payForChecklist(checklistId, title) {
     return false;
   }
 
-  // Показываем загрузку
   const loadingModal = document.createElement('div');
   loadingModal.className = 'modal';
-  loadingModal.innerHTML = `<div class="modal-content"><div style="font-size:18px;">⏳</div><p>Создание платежа...</p></div>`;
+  loadingModal.innerHTML = `<div class="modal-content"><div style="font-size:18px;">⏳</div><p>Создаём счёт...</p></div>`;
   document.body.appendChild(loadingModal);
 
-  try {
-    // Пробуем до 3 раз с новыми инвойсами
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      loadingModal.querySelector('p').textContent = `Попытка ${attempt}/3...`;
+  // Пробуем до 4 раз, каждый раз с НОВЫМ инвойсом
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      // Создаем СВЕЖИЙ инвойс
+      const url = await createInvoice(title, checklistId);
       
-      const result = await tryOpenInvoice(title, checklistId);
+      // Убираем загрузку прямо перед открытием
+      loadingModal.remove();
+      
+      // Минимальная пауза
+      await new Promise(r => setTimeout(r, 100));
+      
+      console.log(`Opening invoice, attempt ${attempt}`);
+      const result = await openInvoice(url);
       console.log(`Attempt ${attempt} result:`, result);
       
       if (result.success) {
-        loadingModal.remove();
         setPaid(checklistId);
-        console.log('✅ Payment successful');
         return true;
       }
       
       if (result.error === 'cancelled') {
-        loadingModal.remove();
-        console.log('Payment cancelled by user');
         return false;
       }
       
-      if (result.error === 'failed' && attempt < 3) {
-        console.log(`🔄 Load failed, retrying...`);
-        await new Promise(r => setTimeout(r, 500));
+      if (result.error === 'failed' && attempt < 4) {
+        // Показываем загрузку снова перед повтором
+        document.body.appendChild(loadingModal);
+        loadingModal.querySelector('p').textContent = 'Создаём новый счёт...';
+        await new Promise(r => setTimeout(r, 800));
         continue;
       }
       
-      if (attempt === 3 || result.error !== 'failed') {
-        loadingModal.remove();
-        if (result.error === 'failed') {
-          alert('Не удалось открыть оплату после нескольких попыток.\n\nПопробуйте:\n1. Проверить интернет\n2. Перезапустить Telegram\n3. Нажать кнопку еще раз');
-        }
+      // Если исчерпали попытки
+      if (attempt === 4) {
+        console.log('All attempts failed');
+        alert('Не удалось открыть оплату.\n\nПопробуйте еще раз.');
+      }
+      
+      return false;
+      
+    } catch (e) {
+      console.error(`Attempt ${attempt} error:`, e);
+      if (attempt === 4) {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(m => m.remove());
+        alert('Ошибка: ' + e.message);
         return false;
       }
+      await new Promise(r => setTimeout(r, 500));
     }
-    
-    loadingModal.remove();
-    return false;
-  } catch (e) {
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(m => m.remove());
-    console.error('Payment error:', e);
-    alert('Ошибка: ' + e.message);
-    return false;
   }
+  
+  const modals = document.querySelectorAll('.modal');
+  modals.forEach(m => m.remove());
+  return false;
 }
 
 export function showPaymentModal(checklistId, title, onSuccess) {
