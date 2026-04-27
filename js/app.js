@@ -129,14 +129,12 @@ function renderList() {
         <div class="card" onclick="${locked ? `window.showPay('${c.id}', '${c.title.replace(/'/g, "\\'")}')` : `openChecklist('${c.id}')`}">
           <div class="card-row">
             <div>
-              <div style="font-weight:700;font-size:16px;">
-                ${locked ? '🔒 ' : ''}${c.title}
-              </div>
+              <div style="font-weight:700;font-size:16px;">${locked ? '🔒 ' : '📖 '}${c.title}</div>
               ${c.subtitle ? `<div class="checklist-subtitle">${c.subtitle}</div>` : ''}
             </div>
             <div style="text-align:right;">
               <div class="status ${s.class}">${s.text}</div>
-              ${locked ? `<div style="font-size:13px;font-weight:600;color:#ff9500;margin-top:4px;">${price}⭐</div>` : ''}
+              ${locked ? `<div style="font-size:14px;font-weight:600;color:#ff9500;margin-top:4px;">${price}⭐</div>` : ''}
             </div>
           </div>
         </div>
@@ -144,6 +142,7 @@ function renderList() {
     }).join('')}
   `;
 }
+
 window.showPay = (id, title) => {
   const checklist = state.checklists.find(c => c.id === id);
   const subtitle = checklist?.subtitle || '';
