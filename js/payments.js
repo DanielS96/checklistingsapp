@@ -1,7 +1,7 @@
 console.log('💰 Payments module loading...');
 
 const WORKER_URL = 'https://checklistings.dan-svistunov.workers.dev';
-const CHECKLIST_PRICE = 100;
+const CHECKLIST_PRICE = 1;
 
 let tg = null;
 let userId = null;
@@ -87,6 +87,46 @@ async function createInvoice(title, checklistId) {
   return data.invoice_url;
 }
 
+// Прогрев ссылки — предзагрузка в невидимом iframe
+async function warmupInvoice(url) {
+  return new Promise((resolve) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+    iframe.src = url;
+    
+    let resolved = false;
+    
+    const cleanup = () => {
+      if (!resolved) {
+        resolved = true;
+        setTimeout(() => {
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        }, 1000);
+      }
+    };
+    
+    iframe.onload = () => {
+      console.log('✅ Invoice preloaded');
+      cleanup();
+      resolve();
+    };
+    
+    iframe.onerror = () => {
+      console.log('⚠️ Preload warning');
+      cleanup();
+      resolve();
+    };
+    
+    document.body.appendChild(iframe);
+    
+    // Максимум ждем 2 секунды
+    setTimeout(() => {
+      cleanup();
+      resolve();
+    }, 2000);
+  });
+}
+
 function openInvoice(url) {
   return new Promise((resolve) => {
     let resolved = false;
@@ -161,11 +201,21 @@ export async function payForChecklist(checklistId, title) {
   loadingModal.innerHTML = `<div class="modal-content"><div style="font-size:18px;">⏳</div><p>Создаём счёт...</p></div>`;
   document.body.appendChild(loadingModal);
 
+  // Пробуем до 4 раз
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
+      // Создаем свежий инвойс
       const url = await createInvoice(title, checklistId);
+      
+      // Прогреваем ссылку
+      loadingModal.querySelector('p').textContent = 'Подготовка...';
+      await warmupInvoice(url);
+      
+      // Убираем загрузку
       loadingModal.remove();
-      await new Promise(r => setTimeout(r, 100));
+      
+      // Небольшая пауза
+      await new Promise(r => setTimeout(r, 200));
       
       console.log(`Opening invoice, attempt ${attempt}`);
       const result = await openInvoice(url);
@@ -183,13 +233,13 @@ export async function payForChecklist(checklistId, title) {
       if (result.error === 'failed' && attempt < 4) {
         document.body.appendChild(loadingModal);
         loadingModal.querySelector('p').textContent = 'Создаём новый счёт...';
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise(r => setTimeout(r, 1000));
         continue;
       }
       
       if (attempt === 4) {
         console.log('All attempts failed');
-        alert('Не удалось открыть оплату.\n\nПопробуйте еще раз.');
+        alert('Не удалось открыть оплату.\n\nПопробуйте:\n1. Проверить интернет\n2. Перезапустить Telegram\n3. Нажать кнопку еще раз');
       }
       
       return false;
@@ -202,7 +252,7 @@ export async function payForChecklist(checklistId, title) {
         alert('Ошибка: ' + e.message);
         return false;
       }
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
   
