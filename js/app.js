@@ -18,7 +18,7 @@ try {
   }
 } catch (e) {}
 
-const CHANNEL_USERNAME = 'checklistings_ru'; // ЗАМЕНИТЕ НА ВАШ КАНАЛ
+const CHANNEL_USERNAME = 'checklistings_channel'; // ЗАМЕНИТЕ НА ВАШ КАНАЛ
 
 // Проверяем, нужно ли показывать модалку
 function shouldShowSubscribe() {
