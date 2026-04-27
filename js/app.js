@@ -11,7 +11,6 @@ let state = {
   current: null
 };
 
-// STORAGE
 const getProgress = () => {
   try { return JSON.parse(localStorage.getItem('progress') || '{}'); }
   catch { return {}; }
@@ -34,7 +33,6 @@ const setOpened = (id) => {
   localStorage.setItem('opened', JSON.stringify(o));
 };
 
-// LEVEL
 function getLevel(percent) {
   if (percent < 20) return 'Новичок';
   if (percent < 50) return 'Любитель';
@@ -42,7 +40,6 @@ function getLevel(percent) {
   return 'Мастер';
 }
 
-// INIT
 async function init() {
   try {
     state.categories = await loadCategories();
@@ -59,10 +56,8 @@ function render() {
   else if (state.screen === 'check') renderCheck();
 }
 
-// ===== CATEGORIES =====
 async function renderCategories() {
   const progress = getProgress();
-
   const categoriesWithProgress = await Promise.all(
     state.categories.map(async (c) => {
       const lists = await loadChecklists(c.id);
@@ -76,7 +71,6 @@ async function renderCategories() {
   const percent = Math.round(
     categoriesWithProgress.reduce((acc, c) => acc + c.percent, 0) / categoriesWithProgress.length
   );
-
   const level = getLevel(percent);
   categoriesWithProgress.sort((a, b) => b.percent - a.percent);
 
@@ -85,9 +79,7 @@ async function renderCategories() {
     <div class="dashboard">
       <div class="dashboard-title">Ваш прогресс</div>
       <div class="dashboard-level">${level}</div>
-      <div class="dashboard-bar">
-        <div class="dashboard-fill" style="width:${percent}%"></div>
-      </div>
+      <div class="dashboard-bar"><div class="dashboard-fill" style="width:${percent}%"></div></div>
       <div style="margin-top:6px;">${percent}% завершено</div>
     </div>
     ${categoriesWithProgress.map(c => `
@@ -99,15 +91,12 @@ async function renderCategories() {
           </div>
           <div class="category-percent">${c.percent}%</div>
         </div>
-        <div class="progress-bar" style="margin-top:8px;">
-          <div class="progress-fill" style="width:${c.percent}%"></div>
-        </div>
+        <div class="progress-bar" style="margin-top:8px;"><div class="progress-fill" style="width:${c.percent}%"></div></div>
       </div>
     `).join('')}
   `;
 }
 
-// ===== CATEGORY =====
 window.openCategory = async (id) => {
   try {
     state.category = state.categories.find(c => c.id === id);
@@ -153,12 +142,9 @@ function renderList() {
 }
 
 window.showPay = (id, title) => {
-  showPaymentModal(id, title, () => {
-    openChecklist(id);
-  });
+  showPaymentModal(id, title, () => openChecklist(id));
 };
 
-// ===== CHECKLIST =====
 window.openChecklist = (id) => {
   setOpened(id);
   state.current = state.checklists.find(x => x.id === id);
@@ -168,7 +154,6 @@ window.openChecklist = (id) => {
 
 function renderCheck() {
   const c = state.current;
-
   app.innerHTML = `
     <button class="btn btn-ghost" onclick="goBack()">← Назад</button>
     <h2>${c.title}</h2>
@@ -196,25 +181,18 @@ window.toggle = (i) => {
   items[i].classList.toggle('open');
 };
 
-// ===== QUIZ =====
 function renderQuiz(c) {
-  if (!c.quiz || c.quiz.length === 0) return '';
+  if (!c.quiz || !c.quiz.length) return '';
   return `
     <div class="quiz-section">
       <div class="quiz-title">🧠 Мини-тест</div>
       ${c.quiz.map((q, i) => `
         <div class="quiz-question">
           <p>${q.q}</p>
-          ${q.a.map((a, j) => `
-            <label class="quiz-option">
-              <input type="radio" name="q${i}" value="${j}"> ${a}
-            </label>
-          `).join('')}
+          ${q.a.map((a, j) => `<label class="quiz-option"><input type="radio" name="q${i}" value="${j}"> ${a}</label>`).join('')}
         </div>
       `).join('')}
-      <div style="text-align:center;margin-top:12px;">
-        <button class="btn btn-primary" onclick="checkQuiz()">Проверить</button>
-      </div>
+      <div style="text-align:center;margin-top:12px;"><button class="btn btn-primary" onclick="checkQuiz()">Проверить</button></div>
     </div>
   `;
 }
@@ -235,20 +213,17 @@ window.checkQuiz = () => {
   const modal = document.createElement('div');
   modal.className = 'modal';
   const ok = score === c.quiz.length;
-  
   if (ok) setDone(c.id);
 
   modal.innerHTML = ok ? `
     <div class="modal-content">
-      <h3>🎉 Отлично!</h3>
-      <p>${score}/${c.quiz.length}</p>
+      <h3>🎉 Отлично!</h3><p>${score}/${c.quiz.length}</p>
       <p>Ты прошёл чек-лист 🚀</p>
       <button class="btn btn-primary" onclick="closeModal(true)">Завершить</button>
     </div>
   ` : `
     <div class="modal-content">
-      <h3>Результат</h3>
-      <p>${score}/${c.quiz.length}</p>
+      <h3>Результат</h3><p>${score}/${c.quiz.length}</p>
       <p>Попробуй ещё раз 🎯</p>
       <button class="btn btn-primary" onclick="closeModal(false)">Вернуться</button>
     </div>
@@ -263,7 +238,6 @@ window.closeModal = (done) => {
   if (done) goBack();
 };
 
-// BACK
 window.goBack = () => {
   if (state.screen === 'check') state.screen = 'list';
   else state.screen = 'categories';
