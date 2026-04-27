@@ -11,6 +11,73 @@ let state = {
   current: null
 };
 
+let tg = null;
+try {
+  if (window.Telegram && window.Telegram.WebApp) {
+    tg = window.Telegram.WebApp;
+  }
+} catch (e) {}
+
+const CHANNEL_USERNAME = 'checklistings_channel'; // ЗАМЕНИТЕ НА ВАШ КАНАЛ
+
+// Проверяем, нужно ли показывать модалку
+function shouldShowSubscribe() {
+  const lastShown = localStorage.getItem('subscribeShown');
+  if (!lastShown) return true; // Первый раз — показываем
+  
+  const lastTime = parseInt(lastShown);
+  const weekInMs = 7 * 24 * 60 * 60 * 1000; // Неделя в миллисекундах
+  
+  return (Date.now() - lastTime) > weekInMs;
+}
+
+// Показать окно подписки
+function showSubscriptionModal(callback) {
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:320px;width:90%;padding:24px 20px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">📢</div>
+      
+      <h3 style="font-size:20px;font-weight:700;margin:0 0 8px 0;color:#1c1c1e;">
+        Подпишитесь на канал
+      </h3>
+      
+      <p style="font-size:14px;color:#666;margin:0 0 16px 0;line-height:1.5;">
+        Подпишитесь на наш канал, чтобы первыми получать новые чек-листы и обновления!
+      </p>
+      
+      <button class="btn btn-primary" id="subscribe-go" style="width:100%;margin-bottom:8px;font-size:15px;">
+        📢 Подписаться
+      </button>
+      
+      <button class="btn btn-ghost" id="subscribe-skip" style="width:100%;font-size:13px;color:#999;">
+        Пропустить
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  document.getElementById('subscribe-go').onclick = () => {
+    if (tg) {
+      tg.openTelegramLink(`https://t.me/${CHANNEL_USERNAME}`);
+    } else {
+      window.open(`https://t.me/${CHANNEL_USERNAME}`, '_blank');
+    }
+    localStorage.setItem('subscribeShown', Date.now());
+    modal.remove();
+    callback();
+  };
+
+  document.getElementById('subscribe-skip').onclick = () => {
+    localStorage.setItem('subscribeShown', Date.now());
+    modal.remove();
+    callback();
+  };
+}
+
+// STORAGE
 const getProgress = () => {
   try { return JSON.parse(localStorage.getItem('progress') || '{}'); }
   catch { return {}; }
@@ -40,10 +107,18 @@ function getLevel(percent) {
   return 'Мастер';
 }
 
+// INIT
 async function init() {
   try {
-    state.categories = await loadCategories();
-    render();
+    if (tg && shouldShowSubscribe()) {
+      showSubscriptionModal(async () => {
+        state.categories = await loadCategories();
+        render();
+      });
+    } else {
+      state.categories = await loadCategories();
+      render();
+    }
   } catch (e) {
     console.error('Init error:', e);
     app.innerHTML = '<p style="text-align:center;padding:40px;">Ошибка загрузки</p>';
@@ -120,19 +195,17 @@ function renderList() {
   const price = getPrice();
   const cat = state.category;
 
-  // Сортируем чек-листы
   const sorted = [...state.checklists].sort((a, b) => {
     const statusA = getStatus(a.id);
     const statusB = getStatus(b.id);
     const lockedA = needsPayment(a, cat);
     const lockedB = needsPayment(b, cat);
     
-    // Приоритеты: progress (0) > new unlocked (1) > new locked (2) > done (3)
     const getPriority = (status, locked) => {
-      if (status.class === 'progress') return 0;  // Начатые
-      if (status.class === 'new' && !locked) return 1;  // Новые открытые
-      if (status.class === 'new' && locked) return 2;  // Новые закрытые
-      return 3;  // Выполненные
+      if (status.class === 'progress') return 0;
+      if (status.class === 'new' && !locked) return 1;
+      if (status.class === 'new' && locked) return 2;
+      return 3;
     };
     
     return getPriority(statusA, lockedA) - getPriority(statusB, lockedB);
@@ -152,7 +225,7 @@ function renderList() {
             </div>
             <div style="text-align:right;">
               <div class="status ${s.class}">${s.text}</div>
-              ${locked ? `<div style="font-size:13px;font-weight:600;color:#ff9500;margin-top:4px;">${price}⭐</div>` : ''}
+              ${locked ? `<div style="font-size:13px;font-weight:600;color:#ff9500;margin-top:4px;">${price} ⭐</div>` : ''}
             </div>
           </div>
         </div>
@@ -160,6 +233,7 @@ function renderList() {
     }).join('')}
   `;
 }
+
 window.showPay = (id, title) => {
   const checklist = state.checklists.find(c => c.id === id);
   const subtitle = checklist?.subtitle || '';
