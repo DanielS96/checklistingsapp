@@ -6,7 +6,6 @@ const CHECKLIST_PRICE = 1;
 let tg = null;
 let userId = null;
 
-// Ждем Telegram API
 async function waitForTelegram() {
   console.log('⏳ Waiting for Telegram...');
   
@@ -38,7 +37,6 @@ async function waitForTelegram() {
 
 const readyPromise = waitForTelegram();
 
-// Хранилище оплат
 function getPaid() {
   try { return JSON.parse(localStorage.getItem('paidChecklists') || '{}'); }
   catch { return {}; }
@@ -61,7 +59,6 @@ export function needsPayment(checklist, category) {
   return true;
 }
 
-// Создание инвойса
 async function createInvoice(title, checklistId) {
   const payload = JSON.stringify({
     checklist_id: checklistId,
@@ -96,26 +93,35 @@ async function createInvoice(title, checklistId) {
   return data.invoice_url;
 }
 
-// Открытие оплаты
 function openInvoice(url) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     console.log('📱 Открытие оплаты...');
     
-    tg.openInvoice(url, (status) => {
-      console.log('💳 Статус:', status);
-      
-      if (status === 'paid') {
-        resolve({ success: true });
-      } else if (status === 'failed') {
-        resolve({ success: false, error: 'load_failed' });
-      } else {
-        resolve({ success: false, status });
-      }
-    });
+    try {
+      tg.openInvoice(url, (status) => {
+        console.log('💳 Статус callback:', status);
+        
+        if (status === 'paid') {
+          console.log('✅ Оплата подтверждена Telegram');
+          resolve({ success: true });
+        } else if (status === 'failed') {
+          console.log('❌ Оплата не удалась');
+          resolve({ success: false, error: 'failed' });
+        } else if (status === 'cancelled') {
+          console.log('🚫 Оплата отменена');
+          resolve({ success: false, error: 'cancelled' });
+        } else {
+          console.log('⚠️ Неизвестный статус:', status);
+          resolve({ success: false, error: 'unknown' });
+        }
+      });
+    } catch (e) {
+      console.error('Ошибка openInvoice:', e);
+      reject(e);
+    }
   });
 }
 
-// Главная функция оплаты
 export async function payForChecklist(checklistId, title) {
   console.log('=== payForChecklist ===');
   
@@ -131,50 +137,80 @@ export async function payForChecklist(checklistId, title) {
     return false;
   }
 
+  // Показываем модалку с ожиданием
+  const existingModal = document.querySelector('.modal');
+  if (existingModal) existingModal.remove();
+  
+  const waitModal = document.createElement('div');
+  waitModal.className = 'modal';
+  waitModal.innerHTML = `
+    <div class="modal-content">
+      <div style="font-size:18px;margin-bottom:12px;">⏳</div>
+      <p>Создание платежа...</p>
+    </div>
+  `;
+  document.body.appendChild(waitModal);
+
   try {
-    // Создаем инвойс
     const invoiceUrl = await createInvoice(title, checklistId);
     
-    // Даем Telegram время подготовиться
+    // Убираем модалку ожидания
+    waitModal.remove();
+    
+    // Небольшая пауза
     await new Promise(r => setTimeout(r, 300));
     
     // Открываем оплату
     let result = await openInvoice(invoiceUrl);
+    console.log('Результат первой попытки:', result);
     
-    // Если Load failed - создаем новый инвойс и пробуем еще раз
-    if (result.error === 'load_failed') {
-      console.log('🔄 Load failed, создаем новый инвойс...');
+    // Если failed - пробуем еще раз с новым инвойсом
+    if (result.error === 'failed') {
+      console.log('🔄 Первая попытка не удалась, пробуем еще раз...');
+      
+      // Показываем что пробуем еще раз
+      const retryModal = document.createElement('div');
+      retryModal.className = 'modal';
+      retryModal.innerHTML = `
+        <div class="modal-content">
+          <div style="font-size:18px;margin-bottom:12px;">⏳</div>
+          <p>Повторная попытка...</p>
+        </div>
+      `;
+      document.body.appendChild(retryModal);
       
       const newInvoiceUrl = await createInvoice(title, checklistId);
+      retryModal.remove();
+      
       await new Promise(r => setTimeout(r, 500));
       result = await openInvoice(newInvoiceUrl);
-      
-      // Если опять fail - последняя попытка
-      if (result.error === 'load_failed') {
-        console.log('🔄 Вторая попытка...');
-        const lastInvoiceUrl = await createInvoice(title, checklistId);
-        await new Promise(r => setTimeout(r, 500));
-        result = await openInvoice(lastInvoiceUrl);
-      }
+      console.log('Результат второй попытки:', result);
     }
 
     if (result.success) {
+      console.log('✅ Платеж успешен, сохраняем...');
       setPaid(checklistId);
       return true;
-    } else if (result.error === 'load_failed') {
-      alert('Не удалось открыть оплату.\n\nПопробуйте:\n1. Проверить интернет\n2. Перезапустить Telegram\n3. Нажать кнопку еще раз');
+    } else if (result.error === 'failed') {
+      alert('Оплата не прошла.\n\nПопробуйте еще раз или проверьте баланс звезд.');
+      return false;
+    } else if (result.error === 'cancelled') {
+      console.log('Оплата отменена пользователем');
       return false;
     }
     
     return false;
   } catch (e) {
+    // Убираем любые модалки
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(m => m.remove());
+    
     console.error('Payment error:', e);
     alert('Ошибка: ' + e.message);
     return false;
   }
 }
 
-// Модальное окно оплаты
 export function showPaymentModal(checklistId, title, onSuccess) {
   const existing = document.querySelector('.modal');
   if (existing) existing.remove();
@@ -195,17 +231,23 @@ export function showPaymentModal(checklistId, title, onSuccess) {
   `;
 
   document.body.appendChild(modal);
+  
   document.getElementById('modal-cancel').onclick = () => modal.remove();
+  
   document.getElementById('modal-pay').onclick = async function() {
     this.disabled = true;
     this.textContent = '⏳';
+    
+    // Закрываем модалку с ценой
+    modal.remove();
+    
     const ok = await payForChecklist(checklistId, title);
+    
     if (ok) {
-      modal.remove();
       if (onSuccess) onSuccess();
     } else {
-      this.disabled = false;
-      this.textContent = 'Оплатить';
+      // Если не удалось - показываем модалку снова
+      showPaymentModal(checklistId, title, onSuccess);
     }
   };
 }
