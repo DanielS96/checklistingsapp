@@ -219,22 +219,23 @@ export function showPaymentModal(checklistId, title, subtitle, onSuccess) {
   modal.className = 'modal';
   modal.innerHTML = `
     <div class="modal-content" style="max-width:340px;width:90%;padding:24px 20px;text-align:center;">
-      <div style="font-size:40px;margin-bottom:12px;">⭐</div>
-      
-      <h3 style="font-size:18px;font-weight:700;margin:0 0 8px 0;color:#1c1c1e;line-height:1.3;">
-        ${title}
+      <h3 style="font-size:20px;font-weight:700;margin:0 0 8px 0;color:#1c1c1e;">
+        Доступ к чек-листу
       </h3>
+      
+      <p style="font-size:15px;font-weight:600;margin:0 0 4px 0;color:#333;line-height:1.3;">
+        ${title}
+      </p>
       
       ${subtitle ? `
         <p style="font-size:13px;color:#8e8e93;margin:0 0 16px 0;line-height:1.4;">
           ${subtitle}
         </p>
-      ` : ''}
+      ` : '<div style="margin-bottom:16px;"></div>'}
       
-      <div style="background:#f2f2f7;border-radius:14px;padding:14px;margin-bottom:12px;">
-        <p style="font-size:32px;font-weight:800;color:#ff9500;margin:0;line-height:1;">
-          ${CHECKLIST_PRICE} <span style="font-size:18px;">⭐</span>
-        </p>
+      <div style="background:#f2f2f7;border-radius:14px;padding:14px;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span style="font-size:32px;font-weight:800;color:#ff9500;line-height:1;">${CHECKLIST_PRICE}</span>
+        <span style="font-size:24px;line-height:1;">⭐</span>
       </div>
       
       <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:20px;padding:10px 14px;background:rgba(52,199,89,0.08);border-radius:10px;">
