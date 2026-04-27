@@ -282,3 +282,48 @@ h2 {
     transform: translateY(0);
   }
 }
+
+
+
+
+
+/* Анимированный градиент для дашборда */
+.dashboard {
+  background: linear-gradient(135deg, #007aff, #34c759, #5856d6, #007aff);
+  background-size: 300% 300%;
+  animation: gradientShift 8s ease infinite;
+}
+
+/* Градиент для кнопок */
+.btn-primary {
+  background: linear-gradient(135deg, #007aff, #5856d6, #007aff);
+  background-size: 200% 200%;
+  animation: gradientShift 6s ease infinite;
+}
+
+/* Легкий градиент для карточек категорий при наведении */
+.card.category {
+  transition: all 0.3s ease;
+}
+
+.card.category:hover {
+  background: linear-gradient(135deg, #ffffff, #f0f4ff);
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 100% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  75% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
