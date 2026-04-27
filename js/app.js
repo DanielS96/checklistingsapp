@@ -145,7 +145,9 @@ function renderList() {
   `;
 }
 window.showPay = (id, title) => {
-  showPaymentModal(id, title, () => openChecklist(id));
+  const checklist = state.checklists.find(c => c.id === id);
+  const subtitle = checklist?.subtitle || '';
+  showPaymentModal(id, title, subtitle, () => openChecklist(id));
 };
 
 window.openChecklist = (id) => {
