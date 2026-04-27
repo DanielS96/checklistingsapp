@@ -133,16 +133,17 @@ function renderList() {
                 ${locked ? '🔒 ' : ''}${c.title}
               </div>
               ${c.subtitle ? `<div class="checklist-subtitle">${c.subtitle}</div>` : ''}
-              ${locked ? `<div class="price-tag">⭐ ${price}</div>` : ''}
             </div>
-            <div class="status ${s.class}">${s.text}</div>
+            <div style="text-align:right;">
+              <div class="status ${s.class}">${s.text}</div>
+              ${locked ? `<div style="font-size:13px;font-weight:600;color:#ff9500;margin-top:4px;">⭐ ${price}</div>` : ''}
+            </div>
           </div>
         </div>
       `;
     }).join('')}
   `;
 }
-
 window.showPay = (id, title) => {
   showPaymentModal(id, title, () => openChecklist(id));
 };
