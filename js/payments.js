@@ -161,16 +161,10 @@ export async function payForChecklist(checklistId, title) {
   loadingModal.innerHTML = `<div class="modal-content"><div style="font-size:18px;">⏳</div><p>Создаём счёт...</p></div>`;
   document.body.appendChild(loadingModal);
 
-  // Пробуем до 4 раз, каждый раз с НОВЫМ инвойсом
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
-      // Создаем СВЕЖИЙ инвойс
       const url = await createInvoice(title, checklistId);
-      
-      // Убираем загрузку прямо перед открытием
       loadingModal.remove();
-      
-      // Минимальная пауза
       await new Promise(r => setTimeout(r, 100));
       
       console.log(`Opening invoice, attempt ${attempt}`);
@@ -187,14 +181,12 @@ export async function payForChecklist(checklistId, title) {
       }
       
       if (result.error === 'failed' && attempt < 4) {
-        // Показываем загрузку снова перед повтором
         document.body.appendChild(loadingModal);
         loadingModal.querySelector('p').textContent = 'Создаём новый счёт...';
         await new Promise(r => setTimeout(r, 800));
         continue;
       }
       
-      // Если исчерпали попытки
       if (attempt === 4) {
         console.log('All attempts failed');
         alert('Не удалось открыть оплату.\n\nПопробуйте еще раз.');
@@ -219,21 +211,44 @@ export async function payForChecklist(checklistId, title) {
   return false;
 }
 
-export function showPaymentModal(checklistId, title, onSuccess) {
+export function showPaymentModal(checklistId, title, subtitle, onSuccess) {
   const existing = document.querySelector('.modal');
   if (existing) existing.remove();
 
   const modal = document.createElement('div');
   modal.className = 'modal';
   modal.innerHTML = `
-    <div class="modal-content">
-      <h3>⭐ Доступ к чек-листу</h3>
-      <p style="margin:8px 0;">${title}</p>
-      <p style="font-size:16px;font-weight:bold;color:#ff9500;margin:12px 0;">${CHECKLIST_PRICE} ⭐</p>
-      <p style="font-size:13px;color:#666;margin-bottom:16px;">Доступ навсегда</p>
+    <div class="modal-content" style="max-width:340px;width:90%;padding:24px 20px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:12px;">⭐</div>
+      
+      <h3 style="font-size:18px;font-weight:700;margin:0 0 8px 0;color:#1c1c1e;line-height:1.3;">
+        ${title}
+      </h3>
+      
+      ${subtitle ? `
+        <p style="font-size:13px;color:#8e8e93;margin:0 0 16px 0;line-height:1.4;">
+          ${subtitle}
+        </p>
+      ` : ''}
+      
+      <div style="background:#f2f2f7;border-radius:14px;padding:14px;margin-bottom:12px;">
+        <p style="font-size:32px;font-weight:800;color:#ff9500;margin:0;line-height:1;">
+          ${CHECKLIST_PRICE} <span style="font-size:18px;">⭐</span>
+        </p>
+      </div>
+      
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:20px;padding:10px 14px;background:rgba(52,199,89,0.08);border-radius:10px;">
+        <span style="font-size:15px;">✅</span>
+        <span style="font-size:13px;font-weight:600;color:#34c759;">Доступ навсегда</span>
+      </div>
+      
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-ghost" id="modal-cancel" style="flex:1;">Отмена</button>
-        <button class="btn btn-primary" id="modal-pay" style="flex:1;">Оплатить</button>
+        <button class="btn btn-ghost" id="modal-cancel" style="flex:1;background:#f2f2f7;color:#333;font-size:14px;border-radius:12px;">
+          Отмена
+        </button>
+        <button class="btn btn-primary" id="modal-pay" style="flex:1;font-size:14px;border-radius:12px;">
+          Оплатить
+        </button>
       </div>
     </div>
   `;
@@ -248,7 +263,7 @@ export function showPaymentModal(checklistId, title, onSuccess) {
     if (ok) {
       if (onSuccess) onSuccess();
     } else {
-      showPaymentModal(checklistId, title, onSuccess);
+      showPaymentModal(checklistId, title, subtitle, onSuccess);
     }
   };
 }
