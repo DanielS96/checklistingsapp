@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Checklistings</title>
+  
+  <!-- 1. Библиотека Telegram (загружается первой) -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <!-- 2. Принудительное рукопожатие ДО того, как пойдет основной поток -->
+  <script>
+    (function() {
+      // Пытаемся "разбудить" WebView мгновенно
+      if (window.Telegram && window.Telegram.WebApp) {
+        try {
+          window.Telegram.WebApp.ready();
+        } catch(e) {}
+      }
+      // Если API еще не готов, пробуем несколько раз в фоне
+      let attempts = 0;
+      const initInterval = setInterval(function() {
+        attempts++;
+        if (window.Telegram && window.Telegram.WebApp) {
+          try {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+            clearInterval(initInterval);
+          } catch(e) {}
+        }
+        if (attempts > 20) clearInterval(initInterval); // Перестаем пытаться через ~4 сек
+      }, 200);
+    })();
+  </script>
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div id="app">
+    <!-- Ваша красивая анимация загрузки -->
+    <div class="loading-screen">
+      <div class="loading-icon">
+        <div class="loading-circle"></div>
+        <div class="loading-logo">📋</div>
+      </div>
+      <p class="loading-text">Checklistings</p>
+      <p class="loading-subtext">Загрузка приложения...</p>
+      <div class="loading-bar">
+        <div class="loading-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module" src="js/app.js"></script>
+  
+  <footer style="text-align:center;padding:20px 16px;font-size:12px;color:#999;line-height:1.6;">
+    © 2026 Checklistings. All rights reserved.<br>
+    All materials are intellectual property.
+  </footer>
+</body>
+</html>
